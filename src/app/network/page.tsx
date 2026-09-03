@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Search, Router, Wifi, Printer, HardDrive, Network as NetworkIcon } from "lucide-react";
+import { Plus, Search, Router, Wifi, Printer, HardDrive, Network as NetworkIcon, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import { mockNetworkDevices, mockLgus } from "@/lib/mock-data";
 import { NetworkDevice, DeviceStatus, DeviceType } from "@/lib/types";
 import { AddNetworkDeviceDialog } from "@/components/forms/add-network-device-dialog";
 import { InlineStatusSelect } from "@/components/forms/inline-status-select";
+import { DeleteConfirmDialog } from "@/components/forms/delete-confirm-dialog";
 
 const DEVICE_STATUS_OPTIONS: { value: DeviceStatus; label: string }[] = [
   { value: "online", label: "Online" },
@@ -46,6 +47,7 @@ export default function NetworkPage() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DeviceStatus | "all">("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deletingDevice, setDeletingDevice] = useState<NetworkDevice | null>(null);
   const [usingMock, setUsingMock] = useState(false);
   const { isAdmin } = useAuth();
 
@@ -158,6 +160,7 @@ export default function NetworkPage() {
                     <th className="px-4 py-2.5">IP Address</th>
                     <th className="px-4 py-2.5">Status</th>
                     <th className="px-4 py-2.5">Last Seen</th>
+                    {isAdmin && <th className="px-4 py-2.5" />}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -197,6 +200,17 @@ export default function NetworkPage() {
                             ? new Date(d.last_seen).toLocaleDateString("en-PH", { month: "short", day: "numeric" })
                             : "—"}
                         </td>
+                        {isAdmin && (
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              onClick={() => setDeletingDevice(d)}
+                              className="text-muted hover:text-critical"
+                              aria-label={`Delete ${d.device_name}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -244,6 +258,17 @@ export default function NetworkPage() {
         onCreated={load}
         lguOptions={lguOptions}
       />
+      {deletingDevice && (
+        <DeleteConfirmDialog
+          open={!!deletingDevice}
+          onClose={() => setDeletingDevice(null)}
+          onDeleted={load}
+          table="network_devices"
+          id={deletingDevice.id}
+          itemLabel={deletingDevice.device_name}
+          logLabel="Deleted network device"
+        />
+      )}
     </AppShell>
   );
 }

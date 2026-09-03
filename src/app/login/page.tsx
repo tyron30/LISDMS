@@ -2,19 +2,22 @@
 
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LayoutDashboard, Loader2 } from "lucide-react";
+import { LayoutDashboard, Loader2, Lock, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { isSupabaseConfigured, getSupabaseClient } from "@/lib/supabase";
 import { logAction } from "@/lib/audit";
+import { useSettings } from "@/lib/settings-context";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { settings } = useSettings();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const timedOut = searchParams.get("reason") === "timeout";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,45 +48,95 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-2 text-center">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md bg-brand text-brand-fg">
-            <LayoutDashboard className="h-5 w-5" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+      {/* Background photo + darkening gradient so form text stays readable
+          regardless of the image's own brightness. Ken Burns is a slow,
+          subtle zoom — disabled automatically for prefers-reduced-motion
+          via the global rule in globals.css. */}
+      <div className="absolute inset-0 -z-10">
+        {/* Plain <img>, not next/image — a full-bleed cover background
+            doesn't need responsive srcset/optimization, and this avoids
+            Next's image optimizer pipeline (which needs a working `sharp`
+            install and can fail to read the file on some Windows setups). */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/login-bg.webp"
+          alt=""
+          className="h-full w-full animate-ken-burns object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/45 to-black/80" />
+      </div>
+
+      <div className="relative z-10 w-full max-w-sm animate-fade-in-up">
+        <div className="mb-7 flex flex-col items-center gap-3 text-center">
+          {settings.logo_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={settings.logo_url}
+              alt={settings.org_name}
+              className="h-12 w-12 rounded-md object-cover shadow-lg ring-1 ring-white/20"
+            />
+          ) : (
+            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-brand text-brand-fg shadow-lg ring-1 ring-white/20">
+              <LayoutDashboard className="h-6 w-6" />
+            </div>
+          )}
+          <div>
+            <h1 className="text-xl font-semibold text-white drop-shadow-sm">
+              Sign in to {settings.org_name}
+            </h1>
+            <p className="mt-1 text-sm text-white/80 drop-shadow-sm">
+              LGU IT Support &amp; Deployment Monitoring System
+            </p>
           </div>
-          <h1 className="text-lg font-semibold text-text">Sign in to LISDMS</h1>
-          <p className="text-sm text-muted">LGU IT Support &amp; Deployment Monitoring System</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 rounded-md border border-border bg-surface p-6 shadow-subtle">
+        {timedOut && (
+          <p className="mb-4 rounded-md border border-warning/40 bg-warning/15 px-3 py-2 text-center text-xs text-warning backdrop-blur-sm">
+            You were signed out after 30 minutes of inactivity. Please sign in again.
+          </p>
+        )}
+
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-4 rounded-lg border border-white/15 bg-surface/90 p-6 shadow-2xl backdrop-blur-xl transition-shadow duration-300 hover:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] dark:bg-surface/80"
+        >
           <div className="space-y-1.5">
             <label htmlFor="email" className="text-sm font-medium text-text">
               Email
             </label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@lisdms.gov.ph"
-            />
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@lisdms.gov.ph"
+                className="pl-9"
+              />
+            </div>
           </div>
 
           <div className="space-y-1.5">
             <label htmlFor="password" className="text-sm font-medium text-text">
               Password
             </label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-            />
+            <div className="relative">
+              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="pl-9"
+              />
+            </div>
           </div>
 
           {error && (

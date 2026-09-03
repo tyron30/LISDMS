@@ -77,8 +77,8 @@ insert into app_settings (id) values (1) on conflict (id) do nothing;
 
 alter table app_settings enable row level security;
 
-create policy "Authenticated users can read settings" on app_settings
-  for select using (auth.role() = 'authenticated');
+create policy "Anyone can read settings" on app_settings
+  for select using (true);
 
 create policy "Admins can update settings" on app_settings
   for update using (public.is_admin());

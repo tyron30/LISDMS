@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Sidebar } from "./sidebar";
 import { TopNav } from "./topnav";
+import { IdleTimeoutGuard } from "./idle-timeout-guard";
 
 export function AppShell({
   title,
@@ -15,6 +16,7 @@ export function AppShell({
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg">
+      <IdleTimeoutGuard />
       <Sidebar mobileOpen={mobileOpen} onCloseMobile={() => setMobileOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopNav title={title} onOpenMobile={() => setMobileOpen(true)} />

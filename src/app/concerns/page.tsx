@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { mockConcerns, mockLgus } from "@/lib/mock-data";
 import { Concern } from "@/lib/types";
 import { NewConcernDialog } from "@/components/forms/new-concern-dialog";
 import { InlineStatusSelect } from "@/components/forms/inline-status-select";
+import { DeleteConfirmDialog } from "@/components/forms/delete-confirm-dialog";
 
 const CONCERN_STATUS_OPTIONS: { value: Concern["status"]; label: string }[] = [
   { value: "open", label: "Open" },
@@ -31,6 +32,7 @@ export default function ConcernsPage() {
   const [concerns, setConcerns] = useState<Concern[]>([]);
   const [lguOptions, setLguOptions] = useState<{ id: string; name: string }[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deletingConcern, setDeletingConcern] = useState<Concern | null>(null);
   const { isAdmin } = useAuth();
 
   async function load() {
@@ -109,6 +111,15 @@ export default function ConcernsPage() {
                   ) : (
                     <Badge className="capitalize">{c.status.replace("_", " ")}</Badge>
                   )}
+                  {isAdmin && (
+                    <button
+                      onClick={() => setDeletingConcern(c)}
+                      className="text-muted hover:text-critical"
+                      aria-label={`Delete ${c.title}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               </Card>
             ))}
@@ -122,6 +133,17 @@ export default function ConcernsPage() {
         onCreated={load}
         lguOptions={lguOptions}
       />
+      {deletingConcern && (
+        <DeleteConfirmDialog
+          open={!!deletingConcern}
+          onClose={() => setDeletingConcern(null)}
+          onDeleted={load}
+          table="concerns"
+          id={deletingConcern.id}
+          itemLabel={deletingConcern.title}
+          logLabel="Deleted concern"
+        />
+      )}
     </AppShell>
   );
 }

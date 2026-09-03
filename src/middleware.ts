@@ -50,7 +50,11 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Run on everything except static assets and the auth callback API.
-    "/((?!_next/static|_next/image|favicon.ico|api/auth).*)",
+    // Run on everything except static assets, common image/font file
+    // extensions, and the auth callback API. Without the extension
+    // exclusion, requests for files under /public (e.g. the login
+    // background) get treated as protected routes and redirected to
+    // /login instead of being served.
+    "/((?!_next/static|_next/image|favicon.ico|api/auth|.*\\.(?:svg|png|jpg|jpeg|webp|gif|ico|css|js|woff|woff2|ttf)$).*)",
   ],
 };

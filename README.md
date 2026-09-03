@@ -40,6 +40,7 @@ Two roles: **admin** (full read/write) and **user** (read-only viewer).
 - **Adding network device inventory to an existing database:** run `supabase/003_add_network_devices.sql` (also safe to re-run / run alongside a fresh `schema.sql`, which already includes it).
 - **Adding District/Date Deployed/AnyDesk credentials to an existing database:** run `supabase/004_add_lgu_deployment_fields.sql`.
 - **Switching to the real Deployed/For Deployment/No Update/Partial Update statuses on an existing database:** run `supabase/005_update_lgu_status_values.sql`. It remaps your existing LGU statuses automatically (see the comments in that file for the exact mapping) — double check the results afterwards since the mapping is a best guess.
+- **Letting the login page show your branding (logo/org name) on an existing database:** run `supabase/006_public_branding_read.sql`. It only changes who can *read* `org_name`/`logo_url` (now: anyone, even signed out) — writing still requires admin.
 - Every new signup defaults to `user` via a database trigger. Promote your first account to admin directly in SQL:
   ```sql
   update profiles set role = 'admin' where email = 'you@yourdomain.gov.ph';
@@ -180,9 +181,100 @@ search bar in the top nav, to open a global search:
 See `src/lib/command-palette-context.tsx` (global keyboard listener) and
 `src/components/command-palette/`.
 
+## Deleting records (data cleanup)
+
+Every record type can now be deleted by an admin, always behind a
+confirmation dialog ("This action cannot be easily undone") — never a
+single-click delete:
+
+- **LGUs** — trash icon on `/lgus`, or "Delete" on the LGU's own page. The
+  confirmation explicitly warns that this cascades: deleting an LGU also
+  deletes its concerns, schedules, requirements, documents, and network
+  devices (enforced by `ON DELETE CASCADE` in the schema, not just app logic).
+- **Concerns** — trash icon on `/concerns` and on an LGU's Concerns tab.
+- **Requirements** — trash icon on `/requirements` and on an LGU's Requirements tab.
+- **Network devices** — trash icon in the device table on `/network`.
+- **Schedules** — "Delete" button inside the visit detail dialog (click any
+  calendar event).
+
+All deletes are admin-only, logged via `logAction()`, and share one
+component: `src/components/forms/delete-confirm-dialog.tsx`.
+
+## Audit Logs: search, filter, and pagination
+
+`/admin/audit-logs` no longer dumps everything as one long scroll:
+
+- Search box (matches actor, action, or target)
+- Filter by action type (dropdown built from whatever actions actually exist)
+- Date range filter (today / 7 days / 30 days / all time)
+- Paginated 20 at a time with Prev/Next
+
+## Branding reaches the whole system, including the login page
+
+Previously the custom logo/org name only showed inside the authenticated
+app (sidebar). Now:
+
+- The **login page** shows the admin-set logo and org name too (e.g. "Sign
+  in to Your Org Name")
+- The **browser tab title** updates to the org name on every page
+- This required loosening the `app_settings` read policy to allow
+  unauthenticated (anonymous) reads, since nobody is signed in yet on the
+  login screen — see `supabase/006_public_branding_read.sql`. Only
+  `org_name`/`logo_url` are exposed this way; writing still requires admin,
+  and every other table still requires authentication to read.
+
+## Notifications button actually works now
+
+The bell in the top nav used to be decorative. It now opens a real dropdown
+computed from live data — no separate notifications table, just a read
+across what already exists:
+
+- Visits scheduled in the next 3 days
+- Open concerns with high/critical severity
+- Requirements past their due date and still pending
+- Network devices currently offline
+
+Badge shows the count; clicking an item jumps to the relevant LGU. Refreshes
+every 5 minutes. See `src/lib/notifications.ts`.
+
+## District is now a dropdown
+
+The Add/Edit LGU form's District field is a `<select>` with 1st–5th District
+instead of free text, so data stays consistent (no "1st District" vs "1st
+Dist." vs "District 1" variants).
+
+## Security: 30-minute idle auto-logout
+
+Any signed-in session automatically signs out after 30 minutes of no mouse,
+keyboard, touch, or scroll activity — with a warning toast 5 minutes before
+it happens. Redirects to `/login?reason=timeout`, which shows a clear notice
+about why they were signed out. See
+`src/components/layout/idle-timeout-guard.tsx`, mounted once inside
+`AppShell` (so it only runs on authenticated pages, never on `/login`
+itself). This is a UX safety net on top of the real security boundary,
+which is Supabase's session/cookie expiry plus `middleware.ts` redirecting
+any request without a valid session.
+
+## Login page design
+
+The login page now uses a full-bleed background photo
+(`public/images/login-bg.webp` — swap this file for your own image anytime,
+same filename) with:
+
+- A dark gradient overlay so the form stays readable regardless of the
+  photo's own brightness
+- A slow, subtle "Ken Burns" zoom on the background (24s, respects
+  `prefers-reduced-motion` automatically via the existing global rule)
+- A frosted-glass login card (`backdrop-blur-xl` + translucent surface)
+  that sits on top, with a fade-up entrance animation
+- Icons inside the email/password fields, and a slightly deeper shadow on
+  hover for polish
+- Still fully dynamic: shows the admin-set logo/org name from
+  `/admin/settings`, same as everywhere else in the app
+
 ## What's a stub (by design, given the size of the original spec)
 
-- Deleting any record, and editing schedules — not built yet (LGUs are fully editable; concerns/requirements/devices have status quick-edit but not full field editing)
+- Editing non-status fields on concerns/requirements/devices (title, category, IP, etc.), and editing schedules — not built yet
 - Preferences page isn't wired to real settings yet; Activity is a placeholder pointing at `audit_logs`
 - Document upload is still a placeholder
 - Real-time subscriptions / notifications

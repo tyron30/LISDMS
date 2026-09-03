@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Plus, Pencil } from "lucide-react";
+import { Search, Plus, Pencil, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,12 +14,14 @@ import { useAuth } from "@/lib/use-auth";
 import { mockLgus } from "@/lib/mock-data";
 import { Lgu } from "@/lib/types";
 import { AddLguDialog } from "@/components/forms/add-lgu-dialog";
+import { DeleteConfirmDialog } from "@/components/forms/delete-confirm-dialog";
 
 export default function LgusPage() {
   const [lgus, setLgus] = useState<Lgu[]>([]);
   const [query, setQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLgu, setEditingLgu] = useState<Lgu | null>(null);
+  const [deletingLgu, setDeletingLgu] = useState<Lgu | null>(null);
   const { isAdmin } = useAuth();
 
   async function load() {
@@ -139,14 +141,23 @@ export default function LgusPage() {
                           : "—"}
                       </td>
                       {isAdmin && (
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() => setEditingLgu(lgu)}
-                            className="text-muted hover:text-text"
-                            aria-label={`Edit ${lgu.name}`}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-end gap-3">
+                            <button
+                              onClick={() => setEditingLgu(lgu)}
+                              className="text-muted hover:text-text"
+                              aria-label={`Edit ${lgu.name}`}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDeletingLgu(lgu)}
+                              className="text-muted hover:text-critical"
+                              aria-label={`Delete ${lgu.name}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>
@@ -200,6 +211,18 @@ export default function LgusPage() {
         onCreated={load}
         lgu={editingLgu ?? undefined}
       />
+      {deletingLgu && (
+        <DeleteConfirmDialog
+          open={!!deletingLgu}
+          onClose={() => setDeletingLgu(null)}
+          onDeleted={load}
+          table="lgus"
+          id={deletingLgu.id}
+          itemLabel={deletingLgu.name}
+          warning="This also deletes all of its concerns, schedules, requirements, documents, and network devices."
+          logLabel="Deleted LGU"
+        />
+      )}
     </AppShell>
   );
 }

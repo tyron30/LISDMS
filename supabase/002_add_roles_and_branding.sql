@@ -80,8 +80,9 @@ insert into app_settings (id) values (1) on conflict (id) do nothing;
 alter table app_settings enable row level security;
 
 drop policy if exists "Authenticated users can read settings" on app_settings;
-create policy "Authenticated users can read settings" on app_settings
-  for select using (auth.role() = 'authenticated');
+drop policy if exists "Anyone can read settings" on app_settings;
+create policy "Anyone can read settings" on app_settings
+  for select using (true);
 
 drop policy if exists "Admins can update settings" on app_settings;
 create policy "Admins can update settings" on app_settings

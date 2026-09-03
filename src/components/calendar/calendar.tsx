@@ -66,7 +66,7 @@ export function Calendar({
         {view === "agenda" && <AgendaView events={events} onSelectEvent={setSelected} />}
       </div>
 
-      <EventDetailDialog event={selected} onClose={() => setSelected(null)} />
+      <EventDetailDialog event={selected} onClose={() => setSelected(null)} onDeleted={onCreated} />
       <ScheduleVisitDialog
         open={scheduleDialogOpen}
         onClose={() => setScheduleDialogOpen(false)}

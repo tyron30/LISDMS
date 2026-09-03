@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { Phone, Mail, CirclePlus, CalendarPlus, FilePlus, Pencil } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { Phone, Mail, CirclePlus, CalendarPlus, FilePlus, Pencil, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { ScheduleVisitDialog } from "@/components/forms/schedule-visit-dialog";
 import { AddRequirementDialog } from "@/components/forms/add-requirement-dialog";
 import { AddLguDialog } from "@/components/forms/add-lgu-dialog";
 import { InlineStatusSelect } from "@/components/forms/inline-status-select";
+import { DeleteConfirmDialog } from "@/components/forms/delete-confirm-dialog";
 import { CredentialsTab } from "@/components/lgus/credentials-tab";
 
 const TABS = ["Overview", "Contacts", "System", "Credentials", "Concerns", "Requirements", "Schedules", "Documents", "History"];
@@ -34,6 +35,7 @@ const REQUIREMENT_STATUS_OPTIONS: { value: Requirement["status"]; label: string 
 
 export default function LguDetailPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const [lgu, setLgu] = useState<Lgu | null>(null);
   const [concerns, setConcerns] = useState<Concern[]>([]);
   const [requirements, setRequirements] = useState<Requirement[]>([]);
@@ -42,6 +44,9 @@ export default function LguDetailPage() {
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [requirementDialogOpen, setRequirementDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteLguOpen, setDeleteLguOpen] = useState(false);
+  const [deletingConcern, setDeletingConcern] = useState<Concern | null>(null);
+  const [deletingRequirement, setDeletingRequirement] = useState<Requirement | null>(null);
   const { isAdmin } = useAuth();
 
   async function load() {
@@ -113,6 +118,9 @@ export default function LguDetailPage() {
               <>
                 <Button size="sm" variant="secondary" onClick={() => setEditDialogOpen(true)}>
                   <Pencil className="h-3.5 w-3.5" /> Edit LGU
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => setDeleteLguOpen(true)}>
+                  <Trash2 className="h-3.5 w-3.5" /> Delete
                 </Button>
                 <Button size="sm" variant="secondary" onClick={() => setConcernDialogOpen(true)}>
                   <CirclePlus className="h-3.5 w-3.5" /> New Concern
@@ -202,18 +210,27 @@ export default function LguDetailPage() {
                     <p className="text-xs text-muted">{c.category} • {new Date(c.created_at).toLocaleDateString("en-PH")}</p>
                   </div>
                   {isAdmin ? (
-                    <InlineStatusSelect
-                      table="concerns"
-                      id={c.id}
-                      value={c.status}
-                      options={CONCERN_STATUS_OPTIONS}
-                      logLabel="Updated concern status"
-                      target={c.title}
-                      onUpdated={(newStatus) =>
-                        setConcerns((prev) => prev.map((x) => (x.id === c.id ? { ...x, status: newStatus } : x)))
-                      }
-                      className="w-32"
-                    />
+                    <div className="flex items-center gap-2">
+                      <InlineStatusSelect
+                        table="concerns"
+                        id={c.id}
+                        value={c.status}
+                        options={CONCERN_STATUS_OPTIONS}
+                        logLabel="Updated concern status"
+                        target={c.title}
+                        onUpdated={(newStatus) =>
+                          setConcerns((prev) => prev.map((x) => (x.id === c.id ? { ...x, status: newStatus } : x)))
+                        }
+                        className="w-32"
+                      />
+                      <button
+                        onClick={() => setDeletingConcern(c)}
+                        className="text-muted hover:text-critical"
+                        aria-label={`Delete ${c.title}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   ) : (
                     <span className="text-xs font-medium capitalize text-muted">{c.status.replace("_", " ")}</span>
                   )}
@@ -239,18 +256,27 @@ export default function LguDetailPage() {
                   <div key={r.id} className="flex items-center justify-between px-4 py-3">
                     <p className="text-sm font-medium text-text">{r.name}</p>
                     {isAdmin ? (
-                      <InlineStatusSelect
-                        table="requirements"
-                        id={r.id}
-                        value={r.status}
-                        options={REQUIREMENT_STATUS_OPTIONS}
-                        logLabel="Updated requirement status"
-                        target={r.name}
-                        onUpdated={(newStatus) =>
-                          setRequirements((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: newStatus } : x)))
-                        }
-                        className="w-32"
-                      />
+                      <div className="flex items-center gap-2">
+                        <InlineStatusSelect
+                          table="requirements"
+                          id={r.id}
+                          value={r.status}
+                          options={REQUIREMENT_STATUS_OPTIONS}
+                          logLabel="Updated requirement status"
+                          target={r.name}
+                          onUpdated={(newStatus) =>
+                            setRequirements((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: newStatus } : x)))
+                          }
+                          className="w-32"
+                        />
+                        <button
+                          onClick={() => setDeletingRequirement(r)}
+                          className="text-muted hover:text-critical"
+                          aria-label={`Delete ${r.name}`}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     ) : (
                       <span className="text-xs font-medium capitalize text-muted">{r.status}</span>
                     )}
@@ -274,6 +300,38 @@ export default function LguDetailPage() {
         onCreated={load}
         lgu={lgu}
       />
+      <DeleteConfirmDialog
+        open={deleteLguOpen}
+        onClose={() => setDeleteLguOpen(false)}
+        onDeleted={() => router.push("/lgus")}
+        table="lgus"
+        id={lgu.id}
+        itemLabel={lgu.name}
+        warning="This also deletes all of its concerns, schedules, requirements, documents, and network devices."
+        logLabel="Deleted LGU"
+      />
+      {deletingConcern && (
+        <DeleteConfirmDialog
+          open={!!deletingConcern}
+          onClose={() => setDeletingConcern(null)}
+          onDeleted={load}
+          table="concerns"
+          id={deletingConcern.id}
+          itemLabel={deletingConcern.title}
+          logLabel="Deleted concern"
+        />
+      )}
+      {deletingRequirement && (
+        <DeleteConfirmDialog
+          open={!!deletingRequirement}
+          onClose={() => setDeletingRequirement(null)}
+          onDeleted={load}
+          table="requirements"
+          id={deletingRequirement.id}
+          itemLabel={deletingRequirement.name}
+          logLabel="Deleted requirement"
+        />
+      )}
       <NewConcernDialog
         open={concernDialogOpen}
         onClose={() => setConcernDialogOpen(false)}

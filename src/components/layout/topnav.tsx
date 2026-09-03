@@ -1,17 +1,117 @@
 "use client";
 
-import { Bell, Menu, Search, Moon, Sun, User, Settings, Activity, LogOut } from "lucide-react";
+import { Bell, Menu, Search, Moon, Sun, User, Settings, Activity, LogOut, CalendarClock, CircleAlert, FileWarning } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/use-auth";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useCommandPalette } from "@/lib/command-palette-context";
+import { getNotifications, AppNotification } from "@/lib/notifications";
 
 function initialsFor(email: string | null) {
   if (!email) return "?";
   const name = email.split("@")[0];
   return name.slice(0, 2).toUpperCase();
+}
+
+const SEVERITY_ICON: Record<AppNotification["severity"], typeof CalendarClock> = {
+  info: CalendarClock,
+  warning: FileWarning,
+  critical: CircleAlert,
+};
+
+const SEVERITY_COLOR: Record<AppNotification["severity"], string> = {
+  info: "text-orientation",
+  warning: "text-warning",
+  critical: "text-critical",
+};
+
+function NotificationsMenu() {
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<AppNotification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const results = await getNotifications();
+      if (!cancelled) {
+        setItems(results);
+        setLoading(false);
+      }
+    }
+    load();
+    // Refresh periodically so the badge count stays reasonably current
+    // without needing a realtime subscription.
+    const interval = setInterval(load, 5 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  function goTo(n: AppNotification) {
+    setOpen(false);
+    router.push(`/lgus/${n.lguId}`);
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="relative flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-bg hover:text-text"
+        aria-label="Notifications"
+      >
+        <Bell className="h-4 w-4" />
+        {items.length > 0 && (
+          <span className="absolute right-1.5 top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-critical px-0.5 text-[9px] font-semibold text-white">
+            {items.length > 9 ? "9+" : items.length}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-10 w-80 rounded-md border border-border bg-surface py-1 shadow-card">
+          <div className="border-b border-border px-3 py-2">
+            <p className="text-sm font-medium text-text">Notifications</p>
+          </div>
+          <div className="max-h-80 overflow-y-auto">
+            {loading && <p className="px-3 py-6 text-center text-sm text-muted">Loading…</p>}
+            {!loading && items.length === 0 && (
+              <p className="px-3 py-6 text-center text-sm text-muted">You&apos;re all caught up.</p>
+            )}
+            {items.map((n) => {
+              const Icon = SEVERITY_ICON[n.severity];
+              return (
+                <button
+                  key={n.id}
+                  onClick={() => goTo(n)}
+                  className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left hover:bg-bg"
+                >
+                  <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${SEVERITY_COLOR[n.severity]}`} />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-text">{n.title}</p>
+                    <p className="truncate text-xs text-muted">{n.detail}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function UserMenu() {
@@ -158,13 +258,7 @@ export function TopNav({
           {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
 
-        <button
-          className="relative flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-bg hover:text-text"
-          aria-label="Notifications"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-critical" />
-        </button>
+        <NotificationsMenu />
 
         <UserMenu />
       </div>

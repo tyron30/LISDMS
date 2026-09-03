@@ -33,6 +33,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     load();
   }, [load]);
 
+  useEffect(() => {
+    document.title = settings.org_name;
+  }, [settings.org_name]);
+
   return (
     <SettingsContext.Provider value={{ settings, refresh: load }}>
       {children}

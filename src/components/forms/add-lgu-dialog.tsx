@@ -18,6 +18,8 @@ const STATUS_OPTIONS: { value: LguStatus; label: string }[] = [
   { value: "no_update", label: "No Update" },
 ];
 
+const DISTRICT_OPTIONS = ["1st District", "2nd District", "3rd District", "4th District", "5th District"];
+
 const EMPTY = {
   name: "",
   province: "",
@@ -141,7 +143,14 @@ export function AddLguDialog({
               <Input value={form.province} onChange={(e) => update("province", e.target.value)} required />
             </Field>
             <Field label="District">
-              <Input value={form.district} onChange={(e) => update("district", e.target.value)} placeholder="e.g. 1st District" />
+              <Select value={form.district} onChange={(e) => update("district", e.target.value)}>
+                <option value="">No district</option>
+                {DISTRICT_OPTIONS.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </Select>
             </Field>
           </div>
           <Field label="Status">

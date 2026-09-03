@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { mockRequirements, mockLgus } from "@/lib/mock-data";
 import { Requirement } from "@/lib/types";
 import { AddRequirementDialog } from "@/components/forms/add-requirement-dialog";
 import { InlineStatusSelect } from "@/components/forms/inline-status-select";
+import { DeleteConfirmDialog } from "@/components/forms/delete-confirm-dialog";
 
 const REQUIREMENT_STATUS_OPTIONS: { value: Requirement["status"]; label: string }[] = [
   { value: "pending", label: "Pending" },
@@ -24,6 +25,7 @@ export default function RequirementsPage() {
   const [items, setItems] = useState<Requirement[]>([]);
   const [lguOptions, setLguOptions] = useState<{ id: string; name: string }[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deletingItem, setDeletingItem] = useState<Requirement | null>(null);
   const { isAdmin } = useAuth();
 
   async function load() {
@@ -79,22 +81,33 @@ export default function RequirementsPage() {
                 <p className="text-sm font-medium text-text">{r.name}</p>
                 <p className="text-xs text-muted">{r.lgu_name}{r.due_date ? ` • Due ${r.due_date}` : ""}</p>
               </div>
-              {isAdmin ? (
-                <InlineStatusSelect
-                  table="requirements"
-                  id={r.id}
-                  value={r.status}
-                  options={REQUIREMENT_STATUS_OPTIONS}
-                  logLabel="Updated requirement status"
-                  target={r.name}
-                  onUpdated={(newStatus) =>
-                    setItems((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: newStatus } : x)))
-                  }
-                  className="w-32"
-                />
-              ) : (
-                <Badge className="capitalize">{r.status}</Badge>
-              )}
+              <div className="flex items-center gap-2">
+                {isAdmin ? (
+                  <InlineStatusSelect
+                    table="requirements"
+                    id={r.id}
+                    value={r.status}
+                    options={REQUIREMENT_STATUS_OPTIONS}
+                    logLabel="Updated requirement status"
+                    target={r.name}
+                    onUpdated={(newStatus) =>
+                      setItems((prev) => prev.map((x) => (x.id === r.id ? { ...x, status: newStatus } : x)))
+                    }
+                    className="w-32"
+                  />
+                ) : (
+                  <Badge className="capitalize">{r.status}</Badge>
+                )}
+                {isAdmin && (
+                  <button
+                    onClick={() => setDeletingItem(r)}
+                    className="text-muted hover:text-critical"
+                    aria-label={`Delete ${r.name}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
             </Card>
           ))
         )}
@@ -106,6 +119,17 @@ export default function RequirementsPage() {
         onCreated={load}
         lguOptions={lguOptions}
       />
+      {deletingItem && (
+        <DeleteConfirmDialog
+          open={!!deletingItem}
+          onClose={() => setDeletingItem(null)}
+          onDeleted={load}
+          table="requirements"
+          id={deletingItem.id}
+          itemLabel={deletingItem.name}
+          logLabel="Deleted requirement"
+        />
+      )}
     </AppShell>
   );
 }
