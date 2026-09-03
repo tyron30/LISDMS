@@ -1,0 +1,115 @@
+// Placeholder data shown only when Supabase isn't configured yet,
+// so the UI is reviewable immediately after install. Replace by
+// running supabase/schema.sql and connecting real env vars.
+import { Lgu, Concern, ScheduleEvent, Requirement, NetworkDevice } from "./types";
+
+export const mockLgus: Lgu[] = [
+  {
+    id: "1",
+    name: "Sta. Fe",
+    province: "Leyte",
+    district: "1st District",
+    date_deployed: "2025-09-23",
+    anydesk_id: "113 041 8272",
+    anydesk_password: "sf-remote-2026",
+    status: "partial_update",
+    system: "QMER",
+    app_version: "v2.4.1",
+    network_setup: "LAN + Online",
+    focal_person: "Ana Reyes",
+    contact_number: "0917 123 4567",
+    email: "anareyes@stafe.gov.ph",
+    open_concerns: 1,
+    pending_requirements: 2,
+    next_visit: "2026-09-03T09:00:00",
+  },
+  {
+    id: "2",
+    name: "Babatngon",
+    province: "Leyte",
+    district: "1st District",
+    date_deployed: "2023-05-29",
+    anydesk_id: "374 280 146",
+    anydesk_password: "bt-remote-2026",
+    status: "no_update",
+    system: "QMER",
+    app_version: "v2.3.0",
+    network_setup: "Online only",
+    focal_person: "Mark Villar",
+    contact_number: "0918 555 2211",
+    email: "mvillar@babatngon.gov.ph",
+    open_concerns: 2,
+    pending_requirements: 0,
+    next_visit: "2026-09-04T10:30:00",
+  },
+  {
+    id: "3",
+    name: "Palo",
+    province: "Leyte",
+    district: "2nd District",
+    date_deployed: "2025-07-03",
+    anydesk_id: "1 259 963 791",
+    anydesk_password: "palo-remote-2026",
+    status: "deployed",
+    system: "QMER",
+    app_version: "v2.4.1",
+    network_setup: "LAN + Online",
+    focal_person: "Grace Tan",
+    contact_number: "0919 888 3344",
+    email: "gtan@palo.gov.ph",
+    open_concerns: 0,
+    pending_requirements: 0,
+    next_visit: null,
+  },
+  {
+    id: "4",
+    name: "Tacloban City",
+    province: "Leyte",
+    district: "2nd District",
+    date_deployed: null,
+    anydesk_id: null,
+    anydesk_password: null,
+    status: "for_deployment",
+    system: "QMER",
+    app_version: "v2.4.1",
+    network_setup: "Pending",
+    focal_person: "Ramon Cruz",
+    contact_number: "0920 444 7788",
+    email: "rcruz@tacloban.gov.ph",
+    open_concerns: 0,
+    pending_requirements: 3,
+    next_visit: "2026-09-08T13:00:00",
+  },
+];
+
+export const mockConcerns: Concern[] = [
+  { id: "c1", lgu_id: "1", lgu_name: "Sta. Fe", title: "Router intermittently drops connection", category: "Network", status: "in_progress", severity: "medium", created_at: "2026-08-28" },
+  { id: "c2", lgu_id: "2", lgu_name: "Babatngon", title: "QR sticker printer offline", category: "Hardware", status: "open", severity: "high", created_at: "2026-08-30" },
+  { id: "c3", lgu_id: "2", lgu_name: "Babatngon", title: "Mobile app crashes on login", category: "Software", status: "open", severity: "critical", created_at: "2026-08-31" },
+];
+
+export const mockSchedule: ScheduleEvent[] = [
+  { id: "s1", lgu_id: "1", lgu_name: "Sta. Fe", title: "Network Expansion Visit", type: "network_installation", date: "2026-09-03", time: "09:00" },
+  { id: "s2", lgu_id: "2", lgu_name: "Babatngon", title: "Critical Concern Follow-up", type: "critical_visit", date: "2026-09-04", time: "10:30" },
+  { id: "s3", lgu_id: "4", lgu_name: "Tacloban City", title: "System Orientation", type: "orientation", date: "2026-09-08", time: "13:00" },
+  { id: "s4", lgu_id: "3", lgu_name: "Palo", title: "Quarterly Feedback Session", type: "feedbacking", date: "2026-09-10", time: "14:00" },
+  { id: "s5", lgu_id: "1", lgu_name: "Sta. Fe", title: "Follow-up Network Check", type: "network_installation", date: "2026-09-10", time: "09:30" },
+  { id: "s6", lgu_id: "2", lgu_name: "Babatngon", title: "Printer Replacement", type: "critical_visit", date: "2026-09-15", time: "11:00" },
+  { id: "s7", lgu_id: "4", lgu_name: "Tacloban City", title: "MOA Signing", type: "orientation", date: "2026-09-18", time: "10:00" },
+  { id: "s8", lgu_id: "3", lgu_name: "Palo", title: "Annual System Review", type: "feedbacking", date: "2026-09-24", time: "15:30" },
+];
+
+export const mockRequirements: Requirement[] = [
+  { id: "r1", lgu_id: "1", lgu_name: "Sta. Fe", name: "Signed MOA", status: "pending", due_date: "2026-09-10" },
+  { id: "r2", lgu_id: "1", lgu_name: "Sta. Fe", name: "Network Site Survey", status: "submitted", due_date: null },
+  { id: "r3", lgu_id: "4", lgu_name: "Tacloban City", name: "Endorsement Letter", status: "pending", due_date: "2026-09-15" },
+];
+
+export const mockNetworkDevices: NetworkDevice[] = [
+  { id: "n1", lgu_id: "1", lgu_name: "Sta. Fe", device_name: "Main Router", device_type: "router", ip_address: "192.168.1.1", mac_address: "AA:BB:CC:00:11:22", status: "online", notes: null, last_seen: "2026-09-01T08:30:00" },
+  { id: "n2", lgu_id: "1", lgu_name: "Sta. Fe", device_name: "Office Switch", device_type: "switch", ip_address: "192.168.1.2", mac_address: "AA:BB:CC:00:11:23", status: "online", notes: null, last_seen: "2026-09-01T08:30:00" },
+  { id: "n3", lgu_id: "2", lgu_name: "Babatngon", device_name: "Front Desk Router", device_type: "router", ip_address: "192.168.2.1", mac_address: "AA:BB:CC:00:22:11", status: "offline", notes: "Reported down during last visit", last_seen: "2026-08-29T14:00:00" },
+  { id: "n4", lgu_id: "2", lgu_name: "Babatngon", device_name: "QR Printer", device_type: "printer", ip_address: null, mac_address: null, status: "maintenance", notes: "Awaiting replacement part", last_seen: "2026-08-30T09:00:00" },
+  { id: "n5", lgu_id: "3", lgu_name: "Palo", device_name: "Main Router", device_type: "router", ip_address: "192.168.3.1", mac_address: "AA:BB:CC:00:33:11", status: "online", notes: null, last_seen: "2026-09-01T07:15:00" },
+  { id: "n6", lgu_id: "4", lgu_name: "Tacloban City", device_name: "Access Point - Lobby", device_type: "access_point", ip_address: "192.168.4.5", mac_address: "AA:BB:CC:00:44:11", status: "online", notes: null, last_seen: "2026-09-01T08:00:00" },
+];
