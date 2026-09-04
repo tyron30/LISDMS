@@ -10,6 +10,7 @@ import { isSupabaseConfigured, getSupabaseClient } from "@/lib/supabase";
 import { useAuth } from "@/lib/use-auth";
 import { mockLgus, mockSchedule, mockConcerns } from "@/lib/mock-data";
 import { Lgu, ScheduleEvent, Concern } from "@/lib/types";
+import { StatCardSkeleton, ListSkeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 
 function greetingName(email: string | null) {
@@ -23,6 +24,7 @@ export default function DashboardPage() {
   const [lgus, setLgus] = useState<Lgu[]>([]);
   const [schedule, setSchedule] = useState<ScheduleEvent[]>([]);
   const [concerns, setConcerns] = useState<Concern[]>([]);
+  const [loading, setLoading] = useState(true);
   const [usingMock, setUsingMock] = useState(false);
 
   useEffect(() => {
@@ -32,6 +34,7 @@ export default function DashboardPage() {
         setSchedule(mockSchedule);
         setConcerns(mockConcerns);
         setUsingMock(true);
+        setLoading(false);
         return;
       }
       try {
@@ -54,6 +57,8 @@ export default function DashboardPage() {
         setSchedule(mockSchedule);
         setConcerns(mockConcerns);
         setUsingMock(true);
+      } finally {
+        setLoading(false);
       }
     }
     load();
@@ -76,10 +81,21 @@ export default function DashboardPage() {
         </div>
 
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatCard label="LGUs" value={lgus.length} icon={Building2} />
-          <StatCard label="Open Concerns" value={concerns.length} icon={CircleAlert} tone="critical" />
-          <StatCard label="For Deployment" value={forDeployment} icon={ClipboardList} tone="warning" />
-          <StatCard label="Upcoming Visits" value={upcomingVisits} icon={CalendarClock} />
+          {loading ? (
+            <>
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+            </>
+          ) : (
+            <>
+              <StatCard label="LGUs" value={lgus.length} icon={Building2} />
+              <StatCard label="Open Concerns" value={concerns.length} icon={CircleAlert} tone="critical" />
+              <StatCard label="For Deployment" value={forDeployment} icon={ClipboardList} tone="warning" />
+              <StatCard label="Upcoming Visits" value={upcomingVisits} icon={CalendarClock} />
+            </>
+          )}
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -90,27 +106,33 @@ export default function DashboardPage() {
                 View calendar
               </Link>
             </CardHeader>
-            <CardContent className="divide-y divide-border p-0">
-              {schedule.length === 0 && (
-                <p className="p-4 text-sm text-muted">No visits scheduled.</p>
-              )}
-              {schedule.map((event) => (
-                <div key={event.id} className="flex items-center justify-between px-4 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-text">{event.lgu_name}</p>
-                    <p className="text-xs text-muted">{event.title}</p>
-                  </div>
-                  <div className="text-right text-xs text-muted">
-                    <p className="font-medium text-text">
-                      {new Date(event.date).toLocaleDateString("en-PH", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </p>
-                    <p>{event.time}</p>
-                  </div>
+            <CardContent className="p-4">
+              {loading ? (
+                <ListSkeleton rows={3} />
+              ) : (
+                <div className="divide-y divide-border">
+                  {schedule.length === 0 && (
+                    <p className="py-4 text-sm text-muted">No visits scheduled.</p>
+                  )}
+                  {schedule.map((event) => (
+                    <div key={event.id} className="flex items-center justify-between py-3">
+                      <div>
+                        <p className="text-sm font-medium text-text">{event.lgu_name}</p>
+                        <p className="text-xs text-muted">{event.title}</p>
+                      </div>
+                      <div className="text-right text-xs text-muted">
+                        <p className="font-medium text-text">
+                          {new Date(event.date).toLocaleDateString("en-PH", {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </p>
+                        <p>{event.time}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </CardContent>
           </Card>
 
@@ -119,12 +141,16 @@ export default function DashboardPage() {
               <CardTitle>LGU Status Overview</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 p-4">
-              {lgus.slice(0, 5).map((lgu) => (
-                <div key={lgu.id} className="flex items-center justify-between">
-                  <span className="text-sm text-text">{lgu.name}</span>
-                  <StatusBadge status={lgu.status} />
-                </div>
-              ))}
+              {loading ? (
+                <ListSkeleton rows={4} />
+              ) : (
+                lgus.slice(0, 5).map((lgu) => (
+                  <div key={lgu.id} className="flex items-center justify-between">
+                    <span className="text-sm text-text">{lgu.name}</span>
+                    <StatusBadge status={lgu.status} />
+                  </div>
+                ))
+              )}
             </CardContent>
           </Card>
         </div>

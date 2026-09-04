@@ -15,17 +15,23 @@ import { mockLgus } from "@/lib/mock-data";
 import { Lgu } from "@/lib/types";
 import { AddLguDialog } from "@/components/forms/add-lgu-dialog";
 import { DeleteConfirmDialog } from "@/components/forms/delete-confirm-dialog";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 export default function LgusPage() {
   const [lgus, setLgus] = useState<Lgu[]>([]);
   const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingLgu, setEditingLgu] = useState<Lgu | null>(null);
   const [deletingLgu, setDeletingLgu] = useState<Lgu | null>(null);
   const { isAdmin } = useAuth();
 
   async function load() {
-    if (!isSupabaseConfigured) return setLgus(mockLgus);
+    if (!isSupabaseConfigured) {
+      setLgus(mockLgus);
+      setLoading(false);
+      return;
+    }
     try {
       const supabase = getSupabaseClient();
       const today = new Date().toISOString().slice(0, 10);
@@ -62,6 +68,8 @@ export default function LgusPage() {
       setLgus(merged);
     } catch {
       setLgus(mockLgus);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -94,7 +102,9 @@ export default function LgusPage() {
           )}
         </div>
 
-        {filtered.length === 0 ? (
+        {loading ? (
+          <TableSkeleton rows={6} cols={5} />
+        ) : filtered.length === 0 ? (
           <EmptyState
             title="No LGUs found"
             description="Try a different search term, or add a new LGU to get started."

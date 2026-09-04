@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Search, Router, Wifi, Printer, HardDrive, Network as NetworkIcon, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Plus, Search, Router, Wifi, Printer, HardDrive, Network as NetworkIcon, Pencil, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,7 @@ import { NetworkDevice, DeviceStatus, DeviceType } from "@/lib/types";
 import { AddNetworkDeviceDialog } from "@/components/forms/add-network-device-dialog";
 import { InlineStatusSelect } from "@/components/forms/inline-status-select";
 import { DeleteConfirmDialog } from "@/components/forms/delete-confirm-dialog";
+import { TableSkeleton } from "@/components/ui/skeleton";
 
 const DEVICE_STATUS_OPTIONS: { value: DeviceStatus; label: string }[] = [
   { value: "online", label: "Online" },
@@ -46,7 +48,9 @@ export default function NetworkPage() {
   const [lguOptions, setLguOptions] = useState<{ id: string; name: string }[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DeviceStatus | "all">("all");
+  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingDevice, setEditingDevice] = useState<NetworkDevice | null>(null);
   const [deletingDevice, setDeletingDevice] = useState<NetworkDevice | null>(null);
   const [usingMock, setUsingMock] = useState(false);
   const { isAdmin } = useAuth();
@@ -56,6 +60,7 @@ export default function NetworkPage() {
       setDevices(mockNetworkDevices);
       setLguOptions(mockLgus.map((l) => ({ id: l.id, name: l.name })));
       setUsingMock(true);
+      setLoading(false);
       return;
     }
     try {
@@ -76,6 +81,8 @@ export default function NetworkPage() {
       setDevices(mockNetworkDevices);
       setLguOptions(mockLgus.map((l) => ({ id: l.id, name: l.name })));
       setUsingMock(true);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -101,9 +108,9 @@ export default function NetworkPage() {
     <AppShell title="Network">
       <div className="mx-auto max-w-6xl space-y-4">
         <div className="flex flex-wrap items-center gap-4 text-sm text-muted">
-          <span>{devices.length} device(s) total</span>
-          <span className="text-success">{onlineCount} online</span>
-          <span className="text-critical">{offlineCount} offline</span>
+          <span>{loading ? "Loading…" : `${devices.length} device(s) total`}</span>
+          {!loading && <span className="text-success">{onlineCount} online</span>}
+          {!loading && <span className="text-critical">{offlineCount} offline</span>}
           {usingMock && (
             <span className="rounded-sm border border-warning/30 bg-warning/10 px-2 py-1 text-xs text-warning">
               Showing sample data
@@ -140,7 +147,9 @@ export default function NetworkPage() {
           )}
         </div>
 
-        {filtered.length === 0 ? (
+        {loading ? (
+          <TableSkeleton rows={5} cols={6} />
+        ) : filtered.length === 0 ? (
           <EmptyState
             title="No devices found"
             description="Try a different search or filter, or add a device to get started."
@@ -174,7 +183,11 @@ export default function NetworkPage() {
                             <span className="font-medium text-text">{d.device_name}</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-text">{d.lgu_name}</td>
+                        <td className="px-4 py-3">
+                          <Link href={`/lgus/${d.lgu_id}`} className="text-text hover:text-brand hover:underline">
+                            {d.lgu_name}
+                          </Link>
+                        </td>
                         <td className="px-4 py-3 text-muted">{TYPE_LABEL[d.device_type]}</td>
                         <td className="px-4 py-3 font-mono text-xs text-muted">{d.ip_address ?? "—"}</td>
                         <td className="px-4 py-3">
@@ -201,14 +214,23 @@ export default function NetworkPage() {
                             : "—"}
                         </td>
                         {isAdmin && (
-                          <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={() => setDeletingDevice(d)}
-                              className="text-muted hover:text-critical"
-                              aria-label={`Delete ${d.device_name}`}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-3">
+                              <button
+                                onClick={() => setEditingDevice(d)}
+                                className="text-muted hover:text-text"
+                                aria-label={`Edit ${d.device_name}`}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setDeletingDevice(d)}
+                                className="text-muted hover:text-critical"
+                                aria-label={`Delete ${d.device_name}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           </td>
                         )}
                       </tr>
@@ -244,6 +266,22 @@ export default function NetworkPage() {
                         <p className="font-mono font-medium text-text">{d.ip_address ?? "—"}</p>
                       </div>
                     </div>
+                    {isAdmin && (
+                      <div className="mt-3 flex justify-end gap-3 border-t border-border pt-3">
+                        <button
+                          onClick={() => setEditingDevice(d)}
+                          className="flex items-center gap-1 text-xs text-muted hover:text-text"
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Edit
+                        </button>
+                        <button
+                          onClick={() => setDeletingDevice(d)}
+                          className="flex items-center gap-1 text-xs text-muted hover:text-critical"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" /> Delete
+                        </button>
+                      </div>
+                    )}
                   </Card>
                 );
               })}
@@ -257,6 +295,13 @@ export default function NetworkPage() {
         onClose={() => setDialogOpen(false)}
         onCreated={load}
         lguOptions={lguOptions}
+      />
+      <AddNetworkDeviceDialog
+        open={!!editingDevice}
+        onClose={() => setEditingDevice(null)}
+        onCreated={load}
+        lguOptions={lguOptions}
+        device={editingDevice ?? undefined}
       />
       {deletingDevice && (
         <DeleteConfirmDialog

@@ -272,9 +272,39 @@ same filename) with:
 - Still fully dynamic: shows the admin-set logo/org name from
   `/admin/settings`, same as everywhere else in the app
 
+## Full edit forms (not just status)
+
+Concerns, requirements, and network devices now have a real edit form, not
+just the inline status dropdown:
+
+- Pencil icon opens the same dialog used for creating, pre-filled, with an
+  additional Status field that only appears in edit mode
+- Available on `/concerns`, `/requirements`, `/network`, and on an LGU's own
+  Concerns/Requirements tabs
+- Requirements past their due date and still pending are now visually
+  flagged ("Overdue since...") in red
+
+## Reports: real, actionable data instead of a fake "visits" number
+
+The old Reports page had a hardcoded "Visits per Month" chart with numbers
+that were never connected to anything — literally a JS array typed into the
+component. Replaced with reports computed from your actual data:
+
+- **LGU Status Distribution** — bar chart, color-coded to match the status badges
+- **Open Concerns by Severity** — where the actual problems are concentrated
+- **App Version Distribution** — horizontal bar chart showing which LGUs are on an outdated build (this is the "which sites need an update" report)
+- **Deployment Coverage by District** — progress bar per district, deployed vs total, so you can see at a glance which district is furthest behind
+- Stat cards: Total LGUs, % Deployed, Open Concerns, Overdue Requirements
+
+## Loading states
+
+Dashboard, LGUs, Concerns, Requirements, Network, and Reports now show
+skeleton placeholders while data loads instead of flashing "0 results" or a
+blank table for a moment — see `src/components/ui/skeleton.tsx`.
+
 ## What's a stub (by design, given the size of the original spec)
 
-- Editing non-status fields on concerns/requirements/devices (title, category, IP, etc.), and editing schedules — not built yet
+- Editing schedules (visits) isn't built yet — LGUs, concerns, requirements, and devices are all fully editable now
 - Preferences page isn't wired to real settings yet; Activity is a placeholder pointing at `audit_logs`
 - Document upload is still a placeholder
 - Real-time subscriptions / notifications

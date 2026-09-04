@@ -9,37 +9,46 @@ import { Button } from "@/components/ui/button";
 import { isSupabaseConfigured, getSupabaseClient } from "@/lib/supabase";
 import { useToast } from "@/lib/toast-context";
 import { logAction } from "@/lib/audit";
+import { Requirement } from "@/lib/types";
 
+const STATUS_OPTIONS: Requirement["status"][] = ["pending", "submitted", "waived"];
+
+// Handles both "Add Requirement" (no `requirement` prop) and "Edit
+// Requirement" (pass the existing row), same pattern as AddLguDialog.
 export function AddRequirementDialog({
   open,
   onClose,
   onCreated,
   lguOptions,
   fixedLguId,
+  requirement,
 }: {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
   lguOptions: { id: string; name: string }[];
   fixedLguId?: string;
+  requirement?: Requirement;
 }) {
-  const [lguId, setLguId] = useState(fixedLguId ?? lguOptions[0]?.id ?? "");
-  const [name, setName] = useState("");
-  const [dueDate, setDueDate] = useState("");
+  const isEdit = Boolean(requirement);
+  const [lguId, setLguId] = useState(requirement?.lgu_id ?? fixedLguId ?? lguOptions[0]?.id ?? "");
+  const [name, setName] = useState(requirement?.name ?? "");
+  const [dueDate, setDueDate] = useState(requirement?.due_date ?? "");
+  const [status, setStatus] = useState<Requirement["status"]>(requirement?.status ?? "pending");
   const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
 
   useEffect(() => {
-    if (open) setLguId(fixedLguId ?? lguOptions[0]?.id ?? "");
-  }, [open, fixedLguId, lguOptions]);
-
-  function reset() {
-    setName("");
-    setDueDate("");
-  }
+    if (open) {
+      setLguId(requirement?.lgu_id ?? fixedLguId ?? lguOptions[0]?.id ?? "");
+      setName(requirement?.name ?? "");
+      setDueDate(requirement?.due_date ?? "");
+      setStatus(requirement?.status ?? "pending");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, requirement?.id]);
 
   function handleClose() {
-    reset();
     onClose();
   }
 
@@ -56,26 +65,38 @@ export function AddRequirementDialog({
     setSaving(true);
     try {
       const supabase = getSupabaseClient();
-      const { error } = await supabase.from("requirements").insert({
-        lgu_id: lguId,
-        name,
-        status: "pending",
-        due_date: dueDate || null,
-      });
-      if (error) throw error;
-      logAction("Added requirement", name);
-      showToast("Requirement added.");
+
+      if (isEdit && requirement) {
+        const { error } = await supabase
+          .from("requirements")
+          .update({ lgu_id: lguId, name, status, due_date: dueDate || null })
+          .eq("id", requirement.id);
+        if (error) throw error;
+        logAction("Updated requirement", name);
+        showToast("Requirement updated.");
+      } else {
+        const { error } = await supabase.from("requirements").insert({
+          lgu_id: lguId,
+          name,
+          status: "pending",
+          due_date: dueDate || null,
+        });
+        if (error) throw error;
+        logAction("Added requirement", name);
+        showToast("Requirement added.");
+      }
+
       onCreated();
       handleClose();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Couldn't add requirement.", "error");
+      showToast(err instanceof Error ? err.message : "Couldn't save requirement.", "error");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Dialog open={open} onClose={handleClose} title="Add Requirement">
+    <Dialog open={open} onClose={handleClose} title={isEdit ? "Edit Requirement" : "Add Requirement"}>
       <form onSubmit={handleSubmit} className="space-y-4">
         {!fixedLguId && (
           <Field label="LGU">
@@ -100,13 +121,25 @@ export function AddRequirementDialog({
           <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         </Field>
 
+        {isEdit && (
+          <Field label="Status">
+            <Select value={status} onChange={(e) => setStatus(e.target.value as Requirement["status"])}>
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s} className="capitalize">
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+
         <div className="flex justify-end gap-2 border-t border-border pt-3">
           <Button type="button" size="sm" variant="secondary" onClick={handleClose}>
             Cancel
           </Button>
           <Button type="submit" size="sm" disabled={saving}>
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            {saving ? "Saving..." : "Add Requirement"}
+            {saving ? "Saving..." : isEdit ? "Save Changes" : "Add Requirement"}
           </Button>
         </div>
       </form>

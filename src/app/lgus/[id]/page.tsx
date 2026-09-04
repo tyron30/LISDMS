@@ -47,6 +47,8 @@ export default function LguDetailPage() {
   const [deleteLguOpen, setDeleteLguOpen] = useState(false);
   const [deletingConcern, setDeletingConcern] = useState<Concern | null>(null);
   const [deletingRequirement, setDeletingRequirement] = useState<Requirement | null>(null);
+  const [editingConcern, setEditingConcern] = useState<Concern | null>(null);
+  const [editingRequirement, setEditingRequirement] = useState<Requirement | null>(null);
   const { isAdmin } = useAuth();
 
   async function load() {
@@ -224,6 +226,13 @@ export default function LguDetailPage() {
                         className="w-32"
                       />
                       <button
+                        onClick={() => setEditingConcern(c)}
+                        className="text-muted hover:text-text"
+                        aria-label={`Edit ${c.title}`}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
                         onClick={() => setDeletingConcern(c)}
                         className="text-muted hover:text-critical"
                         aria-label={`Delete ${c.title}`}
@@ -269,6 +278,13 @@ export default function LguDetailPage() {
                           }
                           className="w-32"
                         />
+                        <button
+                          onClick={() => setEditingRequirement(r)}
+                          className="text-muted hover:text-text"
+                          aria-label={`Edit ${r.name}`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
                         <button
                           onClick={() => setDeletingRequirement(r)}
                           className="text-muted hover:text-critical"
@@ -339,6 +355,14 @@ export default function LguDetailPage() {
         lguOptions={[{ id: lgu.id, name: lgu.name }]}
         fixedLguId={lgu.id}
       />
+      <NewConcernDialog
+        open={!!editingConcern}
+        onClose={() => setEditingConcern(null)}
+        onCreated={load}
+        lguOptions={[{ id: lgu.id, name: lgu.name }]}
+        fixedLguId={lgu.id}
+        concern={editingConcern ?? undefined}
+      />
       <ScheduleVisitDialog
         open={scheduleDialogOpen}
         onClose={() => setScheduleDialogOpen(false)}
@@ -352,6 +376,14 @@ export default function LguDetailPage() {
         onCreated={load}
         lguOptions={[{ id: lgu.id, name: lgu.name }]}
         fixedLguId={lgu.id}
+      />
+      <AddRequirementDialog
+        open={!!editingRequirement}
+        onClose={() => setEditingRequirement(null)}
+        onCreated={load}
+        lguOptions={[{ id: lgu.id, name: lgu.name }]}
+        fixedLguId={lgu.id}
+        requirement={editingRequirement ?? undefined}
       />
     </AppShell>
   );
