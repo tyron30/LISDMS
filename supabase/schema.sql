@@ -86,6 +86,29 @@ create policy "Admins can update settings" on app_settings
 -- ---------------------------------------------------------------------------
 -- Core operational tables
 -- ---------------------------------------------------------------------------
+-- ---------------------------------------------------------------------------
+-- Assigned persons: the small, admin-managed list of staff an LGU can be
+-- assigned to (e.g. "Charles", "Rafa", "Rhea"). A separate table rather
+-- than a free-text field so renaming someone updates everywhere at once,
+-- and so the dropdown in the LGU form always reflects who's actually on
+-- the list right now.
+-- ---------------------------------------------------------------------------
+create table assigned_persons (
+  id uuid primary key default uuid_generate_v4(),
+  name text not null unique,
+  created_at timestamptz not null default now()
+);
+
+alter table assigned_persons enable row level security;
+
+create policy "Authenticated read" on assigned_persons for select using (auth.role() = 'authenticated');
+create policy "Admin write" on assigned_persons for insert with check (public.is_admin());
+create policy "Admin update" on assigned_persons for update using (public.is_admin());
+create policy "Admin delete" on assigned_persons for delete using (public.is_admin());
+
+insert into assigned_persons (name) values ('Charles'), ('Rafa'), ('Rhea')
+on conflict (name) do nothing;
+
 create table lgus (
   id uuid primary key default uuid_generate_v4(),
   name text not null,
@@ -101,6 +124,7 @@ create table lgus (
   email text,
   anydesk_id text,
   anydesk_password text,
+  assigned_person_id uuid references assigned_persons(id) on delete set null,
   created_at timestamptz not null default now()
 );
 

@@ -29,9 +29,23 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user = null;
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    user = data.user;
+  } catch {
+    // A stale/invalid refresh token cookie (e.g. left over from a previous
+    // session on a different Supabase project, or after a manual DB reset)
+    // makes getUser() throw on every request. Clear every sb-* auth cookie
+    // so it stops erroring and the person just gets treated as signed out.
+    request.cookies.getAll().forEach((cookie) => {
+      if (cookie.name.startsWith("sb-")) {
+        response.cookies.set({ name: cookie.name, value: "", maxAge: 0 });
+      }
+    });
+    user = null;
+  }
 
   const isPublicPath = PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
 

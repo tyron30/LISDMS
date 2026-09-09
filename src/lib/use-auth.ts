@@ -26,9 +26,20 @@ export function useAuth() {
       return;
     }
     const supabase = getSupabaseClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    let user = null;
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      user = data.user;
+    } catch {
+      // Same stale-refresh-token scenario handled in middleware.ts — clear
+      // the invalid local session so the browser stops retrying it every
+      // time this hook runs.
+      await supabase.auth.signOut().catch(() => {});
+      setProfile(null);
+      setLoading(false);
+      return;
+    }
 
     if (!user) {
       setProfile(null);

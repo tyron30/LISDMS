@@ -1,5 +1,10 @@
 export type LguStatus = "deployed" | "for_deployment" | "no_update" | "partial_update";
 
+export interface AssignedPerson {
+  id: string;
+  name: string;
+}
+
 export interface Lgu {
   id: string;
   name: string;
@@ -15,6 +20,8 @@ export interface Lgu {
   email: string;
   anydesk_id: string | null;
   anydesk_password: string | null;
+  assigned_person_id: string | null;
+  assigned_person_name?: string | null;
   open_concerns: number;
   pending_requirements: number;
   next_visit: string | null;

@@ -5,6 +5,8 @@ import { Upload, Loader2, KeyRound } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { PasswordStrength, passwordMeetsAllRules } from "@/components/ui/password-strength";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/use-auth";
 import { isSupabaseConfigured, getSupabaseClient } from "@/lib/supabase";
@@ -73,8 +75,8 @@ function ProfileContent() {
       showToast("Connect Supabase to change your password.", "error");
       return;
     }
-    if (newPassword.length < 8) {
-      showToast("Password must be at least 8 characters.", "error");
+    if (!passwordMeetsAllRules(newPassword)) {
+      showToast("Password doesn't meet the requirements below.", "error");
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -166,20 +168,24 @@ function ProfileContent() {
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-text">New password</label>
-            <Input
-              type="password"
+            <PasswordInput
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="At least 8 characters"
             />
+            <PasswordStrength password={newPassword} />
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-text">Confirm new password</label>
-            <Input
-              type="password"
+            <PasswordInput
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
             />
+            {confirmPassword && (
+              <p className={`text-xs ${confirmPassword === newPassword ? "text-success" : "text-critical"}`}>
+                {confirmPassword === newPassword ? "Passwords match" : "Passwords don't match"}
+              </p>
+            )}
           </div>
           <div className="flex justify-end border-t border-border pt-4">
             <Button onClick={handleChangePassword} disabled={savingPassword} variant="secondary">

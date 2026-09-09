@@ -16,6 +16,7 @@ import {
   Users,
   ScrollText,
   Settings,
+  UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/use-auth";
@@ -33,6 +34,7 @@ const NAV = [
 
 const ADMIN_NAV = [
   { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/assigned-persons", label: "Assigned Persons", icon: UserCog },
   { href: "/admin/audit-logs", label: "Audit Logs", icon: ScrollText },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];

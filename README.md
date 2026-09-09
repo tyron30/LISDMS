@@ -41,6 +41,7 @@ Two roles: **admin** (full read/write) and **user** (read-only viewer).
 - **Adding District/Date Deployed/AnyDesk credentials to an existing database:** run `supabase/004_add_lgu_deployment_fields.sql`.
 - **Switching to the real Deployed/For Deployment/No Update/Partial Update statuses on an existing database:** run `supabase/005_update_lgu_status_values.sql`. It remaps your existing LGU statuses automatically (see the comments in that file for the exact mapping) — double check the results afterwards since the mapping is a best guess.
 - **Letting the login page show your branding (logo/org name) on an existing database:** run `supabase/006_public_branding_read.sql`. It only changes who can *read* `org_name`/`logo_url` (now: anyone, even signed out) — writing still requires admin.
+- **Adding the Assigned Persons list to an existing database:** run `supabase/007_add_assigned_persons.sql`. Seeds Charles, Rafa, and Rhea automatically; edit/add/remove from `/admin/assigned-persons` afterward.
 - Every new signup defaults to `user` via a database trigger. Promote your first account to admin directly in SQL:
   ```sql
   update profiles set role = 'admin' where email = 'you@yourdomain.gov.ph';
@@ -301,6 +302,74 @@ component. Replaced with reports computed from your actual data:
 Dashboard, LGUs, Concerns, Requirements, Network, and Reports now show
 skeleton placeholders while data loads instead of flashing "0 results" or a
 blank table for a moment — see `src/components/ui/skeleton.tsx`.
+
+## Stale session cleanup
+
+If a browser has a leftover Supabase refresh token that's no longer valid
+(e.g. after resetting the database, switching Supabase projects, or a cookie
+surviving longer than the session it referred to), Supabase's client used
+to throw `AuthApiError: Invalid Refresh Token` on every single request —
+noisy in the terminal, though the app still correctly treated the visitor
+as signed out. Both `middleware.ts` and `src/lib/use-auth.ts` now catch this
+specifically and clear the invalid `sb-*` cookies/local session the moment
+it's detected, so it self-heals on the next request instead of repeating.
+
+## Security hardening
+
+- **HTTP security headers** (`next.config.mjs`): `X-Frame-Options: DENY` (clickjacking), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, a restrictive `Permissions-Policy` (no camera/mic/geolocation access — this app never needs it), and `Strict-Transport-Security` for once it's deployed behind HTTPS.
+- **Login throttling (UX-level deterrent):** after 5 failed sign-in attempts, the form locks for 30 seconds with a visible countdown. This is a client-side speed bump for casual retries — the real protection against brute-forcing is Supabase Auth's own server-side rate limiting, which applies regardless of what this UI does.
+- **Password strength requirements:** enforced (not just suggested) when changing a password on `/profile` — 8+ characters, one uppercase letter, one number — with a live checklist.
+- **Password visibility toggle** on login and password-change fields, so people can verify what they typed instead of guessing (reduces mistyped-password lockouts, which is itself a security-adjacent UX problem).
+- **Stale session cleanup** (already covered above) prevents a leftover invalid token from being retried indefinitely.
+- **RLS + audit logging + idle timeout** (covered earlier) remain the core of the access-control story — this section is additive hardening on top of that, not a replacement for it.
+
+## UX polish
+
+- **Dialogs now trap focus** — Tab cycles only within the open dialog instead of leaking into the page behind it, and focus returns to whatever triggered the dialog when it closes. First input auto-focuses on open. This matters for both keyboard users and screen reader users.
+- **Mobile bottom action bar on the LGU page** (`Call` / `Email` / `Concern` / `Schedule`, admin actions included) — always reachable with one thumb without scrolling back to the header, per the original spec's mobile quick-actions requirement.
+- **Consistent loading skeletons** now also cover the LGU detail page (previously just showed "Loading…" as plain text).
+
+## Assigned persons
+
+Admins manage a simple staff list at `/admin/assigned-persons` (add, rename,
+remove — seeded with Charles, Rafa, and Rhea from the original spreadsheet).
+Every LGU can be assigned to one of these people via a dropdown on the
+Add/Edit LGU form; it shows on the LGU list, the LGU's Overview tab, and
+survives renames automatically since it's stored as a foreign key, not a
+copied string. Removing a person just unassigns their LGUs rather than
+deleting anything else.
+
+## LGU list grouped by district
+
+`/lgus` now renders a separate table per district (1st through 5th, in
+order), each with its own header and count, instead of one long flat list —
+matching how the source spreadsheet was organized. LGUs without a district
+set land in a "No District Set" group at the end.
+
+## LGU name autocomplete with district auto-fill
+
+Typing in the LGU Name field on Add/Edit LGU suggests matching Leyte towns
+as you type (e.g. typing "B" surfaces Babatngon, Barugo, Bato...). Picking a
+suggestion auto-fills the District (when known) and defaults Province to
+"Leyte" — both stay editable afterward, this is just a starting point, not
+a lock.
+
+**Data confidence note:** the town list lives in `src/lib/leyte-towns.ts` —
+a plain array, easy to edit directly. All 43 Leyte LGUs (40 municipalities
+plus Tacloban City, Ormoc City, and Baybay City) are now mapped to their
+correct district, sourced from the official district breakdown.
+
+## Fixed: typing inside any dialog required re-clicking after every letter
+
+Root cause: the dialog's keyboard focus-trap effect depended on the `onClose`
+function, which is a fresh function reference on every render for most
+callers (`onClose={() => setX(null)}`) — so the effect re-ran on every
+keystroke inside the dialog, which re-focused an element and stole focus
+away mid-type. Fixed by keeping the latest `onClose` in a ref instead of an
+effect dependency, so the focus-trap effect now only runs when the dialog
+actually opens or closes. This affected every dialog in the app (Add/Edit
+LGU, New Concern, Schedule Visit, etc.), not just the LGU name field — all
+fixed by the same change since they share one `Dialog` component.
 
 ## What's a stub (by design, given the size of the original spec)
 

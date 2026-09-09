@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { isSupabaseConfigured, getSupabaseClient } from "@/lib/supabase";
 import { useToast } from "@/lib/toast-context";
 import { logAction } from "@/lib/audit";
-import { Lgu, LguStatus } from "@/lib/types";
+import { Lgu, LguStatus, AssignedPerson } from "@/lib/types";
+import { mockAssignedPersons } from "@/lib/mock-data";
+import { LguNameAutocomplete } from "./lgu-name-autocomplete";
 
 const STATUS_OPTIONS: { value: LguStatus; label: string }[] = [
   { value: "for_deployment", label: "For Deployment" },
@@ -34,6 +36,7 @@ const EMPTY = {
   email: "",
   anydesk_id: "",
   anydesk_password: "",
+  assigned_person_id: "",
 };
 
 type FormState = typeof EMPTY;
@@ -53,6 +56,7 @@ function lguToForm(lgu: Lgu): FormState {
     email: lgu.email ?? "",
     anydesk_id: lgu.anydesk_id ?? "",
     anydesk_password: lgu.anydesk_password ?? "",
+    assigned_person_id: lgu.assigned_person_id ?? "",
   };
 }
 
@@ -72,12 +76,31 @@ export function AddLguDialog({
   const isEdit = Boolean(lgu);
   const [form, setForm] = useState<FormState>(lgu ? lguToForm(lgu) : EMPTY);
   const [saving, setSaving] = useState(false);
+  const [assignedPersons, setAssignedPersons] = useState<AssignedPerson[]>([]);
   const { showToast } = useToast();
 
   useEffect(() => {
     if (open) setForm(lgu ? lguToForm(lgu) : EMPTY);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, lgu?.id]);
+
+  useEffect(() => {
+    if (!open) return;
+    async function loadPeople() {
+      if (!isSupabaseConfigured) {
+        setAssignedPersons(mockAssignedPersons);
+        return;
+      }
+      try {
+        const supabase = getSupabaseClient();
+        const { data } = await supabase.from("assigned_persons").select("*").order("name");
+        setAssignedPersons((data as AssignedPerson[]) ?? []);
+      } catch {
+        setAssignedPersons(mockAssignedPersons);
+      }
+    }
+    loadPeople();
+  }, [open]);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -107,6 +130,7 @@ export function AddLguDialog({
         date_deployed: form.date_deployed || null,
         anydesk_id: form.anydesk_id || null,
         anydesk_password: form.anydesk_password || null,
+        assigned_person_id: form.assigned_person_id || null,
       };
 
       if (isEdit && lgu) {
@@ -136,7 +160,17 @@ export function AddLguDialog({
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">Basic Information</p>
           <Field label="LGU Name">
-            <Input value={form.name} onChange={(e) => update("name", e.target.value)} required />
+            <LguNameAutocomplete
+              value={form.name}
+              onChange={(v) => update("name", v)}
+              onSelectTown={(district) => {
+                // Auto-fill district when it's known, and default the
+                // province to Leyte since the whole system is Leyte-only
+                // for now — the admin can still change either afterward.
+                if (district) update("district", district);
+                if (!form.province) update("province", "Leyte");
+              }}
+            />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Province">
@@ -158,6 +192,16 @@ export function AddLguDialog({
               {STATUS_OPTIONS.map((s) => (
                 <option key={s.value} value={s.value}>
                   {s.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Assigned Person">
+            <Select value={form.assigned_person_id} onChange={(e) => update("assigned_person_id", e.target.value)}>
+              <option value="">Unassigned</option>
+              {assignedPersons.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
                 </option>
               ))}
             </Select>

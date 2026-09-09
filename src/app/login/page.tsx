@@ -1,13 +1,17 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { LayoutDashboard, Loader2, Lock, Mail } from "lucide-react";
+import { LayoutDashboard, Loader2, Lock, Mail, ShieldAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/ui/button";
 import { isSupabaseConfigured, getSupabaseClient } from "@/lib/supabase";
 import { logAction } from "@/lib/audit";
 import { useSettings } from "@/lib/settings-context";
+
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_SECONDS = 30;
 
 function LoginForm() {
   const router = useRouter();
@@ -17,11 +21,21 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutRemaining, setLockoutRemaining] = useState(0);
   const timedOut = searchParams.get("reason") === "timeout";
+
+  useEffect(() => {
+    if (lockoutRemaining <= 0) return;
+    const t = setInterval(() => setLockoutRemaining((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(t);
+  }, [lockoutRemaining]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (lockoutRemaining > 0) return;
 
     if (!isSupabaseConfigured) {
       setError(
@@ -36,6 +50,15 @@ function LoginForm() {
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) {
         setError(signInError.message);
+        // This is a client-side deterrent for casual retries, not the real
+        // protection — Supabase Auth already rate-limits sign-in attempts
+        // server-side regardless of what this UI does.
+        const next = failedAttempts + 1;
+        setFailedAttempts(next);
+        if (next >= MAX_ATTEMPTS) {
+          setLockoutRemaining(LOCKOUT_SECONDS);
+          setFailedAttempts(0);
+        }
         return;
       }
       const next = searchParams.get("next") || "/dashboard";
@@ -125,10 +148,9 @@ function LoginForm() {
               Password
             </label>
             <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-              <Input
+              <Lock className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted" />
+              <PasswordInput
                 id="password"
-                type="password"
                 autoComplete="current-password"
                 required
                 value={password}
@@ -139,15 +161,22 @@ function LoginForm() {
             </div>
           </div>
 
-          {error && (
+          {lockoutRemaining > 0 && (
+            <p className="flex items-center gap-1.5 rounded-sm border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+              <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+              Too many attempts. Try again in {lockoutRemaining}s.
+            </p>
+          )}
+
+          {error && lockoutRemaining === 0 && (
             <p className="rounded-sm border border-critical/30 bg-critical/10 px-3 py-2 text-xs text-critical">
               {error}
             </p>
           )}
 
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="w-full" disabled={loading || lockoutRemaining > 0}>
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {loading ? "Signing in..." : "Sign in"}
+            {loading ? "Signing in..." : lockoutRemaining > 0 ? `Try again in ${lockoutRemaining}s` : "Sign in"}
           </Button>
 
           {!isSupabaseConfigured && (

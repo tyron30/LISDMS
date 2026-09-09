@@ -18,6 +18,7 @@ import { AddLguDialog } from "@/components/forms/add-lgu-dialog";
 import { InlineStatusSelect } from "@/components/forms/inline-status-select";
 import { DeleteConfirmDialog } from "@/components/forms/delete-confirm-dialog";
 import { CredentialsTab } from "@/components/lgus/credentials-tab";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const TABS = ["Overview", "Contacts", "System", "Credentials", "Concerns", "Requirements", "Schedules", "Documents", "History"];
 
@@ -62,11 +63,19 @@ export default function LguDetailPage() {
     try {
       const supabase = getSupabaseClient();
       const [lguRes, concernsRes, requirementsRes] = await Promise.all([
-        supabase.from("lgus").select("*").eq("id", params.id).maybeSingle(),
+        supabase.from("lgus").select("*, assigned_persons(name)").eq("id", params.id).maybeSingle(),
         supabase.from("concerns").select("*").eq("lgu_id", params.id).order("created_at", { ascending: false }),
         supabase.from("requirements").select("*").eq("lgu_id", params.id).order("created_at", { ascending: false }),
       ]);
-      setLgu((lguRes.data as Lgu) ?? null);
+      const lguRow = lguRes.data as (Record<string, unknown> & { assigned_persons?: { name?: string } | null }) | null;
+      setLgu(
+        lguRow
+          ? ({
+              ...lguRow,
+              assigned_person_name: lguRow.assigned_persons?.name ?? null,
+            } as Lgu)
+          : null
+      );
       setConcerns((concernsRes.data as Concern[]) ?? []);
       setRequirements((requirementsRes.data as Requirement[]) ?? []);
     } catch {
@@ -85,7 +94,25 @@ export default function LguDetailPage() {
   if (!lgu) {
     return (
       <AppShell title="LGU">
-        <p className="text-sm text-muted">Loading…</p>
+        <div className="mx-auto max-w-6xl space-y-5">
+          <div className="flex items-center justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-24" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-20" />
+              <Skeleton className="h-8 w-20" />
+            </div>
+          </div>
+          <Skeleton className="h-8 w-full" />
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+            <Skeleton className="h-20" />
+          </div>
+        </div>
       </AppShell>
     );
   }
@@ -95,7 +122,7 @@ export default function LguDetailPage() {
 
   return (
     <AppShell title={lgu.name}>
-      <div className="mx-auto max-w-6xl space-y-5">
+      <div className="mx-auto max-w-6xl space-y-5 pb-20 md:pb-0">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -162,6 +189,10 @@ export default function LguDetailPage() {
             <Card className="p-4">
               <p className="text-xs text-muted">District</p>
               <p className="mt-1 text-sm font-medium text-text">{lgu.district || "—"}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs text-muted">Assigned Person</p>
+              <p className="mt-1 text-sm font-medium text-text">{lgu.assigned_person_name || "Unassigned"}</p>
             </Card>
             <Card className="p-4">
               <p className="text-xs text-muted">Date Deployed</p>
@@ -307,6 +338,43 @@ export default function LguDetailPage() {
           <Card className="p-8 text-center text-sm text-muted">
             This section is scaffolded and ready to be wired to your Supabase tables.
           </Card>
+        )}
+      </div>
+
+      {/* Mobile-only quick actions, always reachable with one thumb at the
+          bottom of the screen instead of scrolling back up to the header. */}
+      <div className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-border bg-surface/95 shadow-[0_-4px_16px_-4px_rgba(0,0,0,0.15)] backdrop-blur-sm md:hidden">
+        <a
+          href={lgu.contact_number ? `tel:${lgu.contact_number.replace(/\s+/g, "")}` : undefined}
+          className={`flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 ${!lgu.contact_number ? "pointer-events-none opacity-40" : "text-muted hover:text-brand"}`}
+        >
+          <Phone className="h-5 w-5" />
+          <span className="text-[10px] font-medium">Call</span>
+        </a>
+        <a
+          href={lgu.email ? `mailto:${lgu.email}` : undefined}
+          className={`flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 border-l border-border ${!lgu.email ? "pointer-events-none opacity-40" : "text-muted hover:text-brand"}`}
+        >
+          <Mail className="h-5 w-5" />
+          <span className="text-[10px] font-medium">Email</span>
+        </a>
+        {isAdmin && (
+          <>
+            <button
+              onClick={() => setConcernDialogOpen(true)}
+              className="flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 border-l border-border text-muted hover:text-brand"
+            >
+              <CirclePlus className="h-5 w-5" />
+              <span className="text-[10px] font-medium">Concern</span>
+            </button>
+            <button
+              onClick={() => setScheduleDialogOpen(true)}
+              className="flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 border-l border-border text-muted hover:text-brand"
+            >
+              <CalendarPlus className="h-5 w-5" />
+              <span className="text-[10px] font-medium">Schedule</span>
+            </button>
+          </>
         )}
       </div>
 

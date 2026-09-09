@@ -1,7 +1,13 @@
 // Placeholder data shown only when Supabase isn't configured yet,
 // so the UI is reviewable immediately after install. Replace by
 // running supabase/schema.sql and connecting real env vars.
-import { Lgu, Concern, ScheduleEvent, Requirement, NetworkDevice } from "./types";
+import { Lgu, Concern, ScheduleEvent, Requirement, NetworkDevice, AssignedPerson } from "./types";
+
+export const mockAssignedPersons: AssignedPerson[] = [
+  { id: "p1", name: "Charles" },
+  { id: "p2", name: "Rafa" },
+  { id: "p3", name: "Rhea" },
+];
 
 export const mockLgus: Lgu[] = [
   {
@@ -12,6 +18,8 @@ export const mockLgus: Lgu[] = [
     date_deployed: "2025-09-23",
     anydesk_id: "113 041 8272",
     anydesk_password: "sf-remote-2026",
+    assigned_person_id: "p2",
+    assigned_person_name: "Rafa",
     status: "partial_update",
     system: "QMER",
     app_version: "v2.4.1",
@@ -31,6 +39,8 @@ export const mockLgus: Lgu[] = [
     date_deployed: "2023-05-29",
     anydesk_id: "374 280 146",
     anydesk_password: "bt-remote-2026",
+    assigned_person_id: "p3",
+    assigned_person_name: "Rhea",
     status: "no_update",
     system: "QMER",
     app_version: "v2.3.0",
@@ -50,6 +60,8 @@ export const mockLgus: Lgu[] = [
     date_deployed: "2025-07-03",
     anydesk_id: "1 259 963 791",
     anydesk_password: "palo-remote-2026",
+    assigned_person_id: "p3",
+    assigned_person_name: "Rhea",
     status: "deployed",
     system: "QMER",
     app_version: "v2.4.1",
@@ -69,6 +81,8 @@ export const mockLgus: Lgu[] = [
     date_deployed: null,
     anydesk_id: null,
     anydesk_password: null,
+    assigned_person_id: "p1",
+    assigned_person_name: "Charles",
     status: "for_deployment",
     system: "QMER",
     app_version: "v2.4.1",
