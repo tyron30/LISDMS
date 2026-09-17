@@ -22,20 +22,47 @@ export interface Lgu {
   anydesk_password: string | null;
   assigned_person_id: string | null;
   assigned_person_name?: string | null;
-  open_concerns: number;
+  open_tickets: number;
   pending_requirements: number;
   next_visit: string | null;
 }
 
-export interface Concern {
+export type TicketStatus = "open" | "in_progress" | "resolved";
+export type TicketPriority = "low" | "medium" | "high" | "critical";
+
+export interface Ticket {
   id: string;
+  ticket_number: number;
   lgu_id: string;
   lgu_name: string;
   title: string;
+  description: string | null;
   category: string;
-  status: "open" | "in_progress" | "resolved";
-  severity: "low" | "medium" | "high" | "critical";
+  status: TicketStatus;
+  priority: TicketPriority;
+  requester_name: string | null;
+  requester_email: string | null;
+  assigned_person_id: string | null;
+  assigned_person_name?: string | null;
   created_at: string;
+  updated_at: string;
+  resolved_at: string | null;
+}
+
+export interface TicketComment {
+  id: string;
+  ticket_id: string;
+  author_email: string | null;
+  body: string;
+  created_at: string;
+}
+
+export interface TicketAttachment {
+  id: string;
+  ticket_id: string;
+  file_name: string;
+  file_url: string;
+  uploaded_at: string;
 }
 
 export interface ScheduleEvent {

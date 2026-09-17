@@ -1,7 +1,7 @@
 // Placeholder data shown only when Supabase isn't configured yet,
 // so the UI is reviewable immediately after install. Replace by
 // running supabase/schema.sql and connecting real env vars.
-import { Lgu, Concern, ScheduleEvent, Requirement, NetworkDevice, AssignedPerson } from "./types";
+import { Lgu, Ticket, TicketComment, ScheduleEvent, Requirement, NetworkDevice, AssignedPerson } from "./types";
 
 export const mockAssignedPersons: AssignedPerson[] = [
   { id: "p1", name: "Charles" },
@@ -27,7 +27,7 @@ export const mockLgus: Lgu[] = [
     focal_person: "Ana Reyes",
     contact_number: "0917 123 4567",
     email: "anareyes@stafe.gov.ph",
-    open_concerns: 1,
+    open_tickets: 1,
     pending_requirements: 2,
     next_visit: "2026-09-03T09:00:00",
   },
@@ -48,7 +48,7 @@ export const mockLgus: Lgu[] = [
     focal_person: "Mark Villar",
     contact_number: "0918 555 2211",
     email: "mvillar@babatngon.gov.ph",
-    open_concerns: 2,
+    open_tickets: 2,
     pending_requirements: 0,
     next_visit: "2026-09-04T10:30:00",
   },
@@ -69,7 +69,7 @@ export const mockLgus: Lgu[] = [
     focal_person: "Grace Tan",
     contact_number: "0919 888 3344",
     email: "gtan@palo.gov.ph",
-    open_concerns: 0,
+    open_tickets: 0,
     pending_requirements: 0,
     next_visit: null,
   },
@@ -90,21 +90,76 @@ export const mockLgus: Lgu[] = [
     focal_person: "Ramon Cruz",
     contact_number: "0920 444 7788",
     email: "rcruz@tacloban.gov.ph",
-    open_concerns: 0,
+    open_tickets: 0,
     pending_requirements: 3,
     next_visit: "2026-09-08T13:00:00",
   },
 ];
 
-export const mockConcerns: Concern[] = [
-  { id: "c1", lgu_id: "1", lgu_name: "Sta. Fe", title: "Router intermittently drops connection", category: "Network", status: "in_progress", severity: "medium", created_at: "2026-08-28" },
-  { id: "c2", lgu_id: "2", lgu_name: "Babatngon", title: "QR sticker printer offline", category: "Hardware", status: "open", severity: "high", created_at: "2026-08-30" },
-  { id: "c3", lgu_id: "2", lgu_name: "Babatngon", title: "Mobile app crashes on login", category: "Software", status: "open", severity: "critical", created_at: "2026-08-31" },
+export const mockTickets: Ticket[] = [
+  {
+    id: "c1",
+    ticket_number: 1001,
+    lgu_id: "1",
+    lgu_name: "Sta. Fe",
+    title: "Router intermittently drops connection",
+    description: "The router at the municipal hall drops connection a few times a day, usually in the afternoon.",
+    category: "Network",
+    status: "in_progress",
+    priority: "medium",
+    requester_name: "Amparo Monteza",
+    requester_email: "amparomonteza@gmail.com",
+    assigned_person_id: "p2",
+    assigned_person_name: "Rafa",
+    created_at: "2026-08-28T09:00:00",
+    updated_at: "2026-08-29T14:00:00",
+    resolved_at: null,
+  },
+  {
+    id: "c2",
+    ticket_number: 1002,
+    lgu_id: "2",
+    lgu_name: "Babatngon",
+    title: "QR sticker printer offline",
+    description: "Printer used for QR stickers won't turn on. LED indicator is not lighting up.",
+    category: "Hardware",
+    status: "open",
+    priority: "high",
+    requester_name: "Eleonor Lugnasin",
+    requester_email: null,
+    assigned_person_id: "p3",
+    assigned_person_name: "Rhea",
+    created_at: "2026-08-30T10:15:00",
+    updated_at: "2026-08-30T10:15:00",
+    resolved_at: null,
+  },
+  {
+    id: "c3",
+    ticket_number: 1003,
+    lgu_id: "2",
+    lgu_name: "Babatngon",
+    title: "Mobile app crashes on login",
+    description: "QMER mobile app closes immediately after entering credentials, on all 3 tablets.",
+    category: "Software",
+    status: "open",
+    priority: "critical",
+    requester_name: "Eleonor Lugnasin",
+    requester_email: null,
+    assigned_person_id: null,
+    assigned_person_name: null,
+    created_at: "2026-08-31T08:30:00",
+    updated_at: "2026-08-31T08:30:00",
+    resolved_at: null,
+  },
+];
+
+export const mockTicketComments: TicketComment[] = [
+  { id: "tc1", ticket_id: "c1", author_email: "rafa@lisdms.gov.ph", body: "Visited site, reseated the LAN cable. Monitoring for recurrence.", created_at: "2026-08-29T14:00:00" },
 ];
 
 export const mockSchedule: ScheduleEvent[] = [
   { id: "s1", lgu_id: "1", lgu_name: "Sta. Fe", title: "Network Expansion Visit", type: "network_installation", date: "2026-09-03", time: "09:00" },
-  { id: "s2", lgu_id: "2", lgu_name: "Babatngon", title: "Critical Concern Follow-up", type: "critical_visit", date: "2026-09-04", time: "10:30" },
+  { id: "s2", lgu_id: "2", lgu_name: "Babatngon", title: "Critical Ticket Follow-up", type: "critical_visit", date: "2026-09-04", time: "10:30" },
   { id: "s3", lgu_id: "4", lgu_name: "Tacloban City", title: "System Orientation", type: "orientation", date: "2026-09-08", time: "13:00" },
   { id: "s4", lgu_id: "3", lgu_name: "Palo", title: "Quarterly Feedback Session", type: "feedbacking", date: "2026-09-10", time: "14:00" },
   { id: "s5", lgu_id: "1", lgu_name: "Sta. Fe", title: "Follow-up Network Check", type: "network_installation", date: "2026-09-10", time: "09:30" },

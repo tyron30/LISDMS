@@ -6,8 +6,8 @@ create extension if not exists "uuid-ossp";
 create type lgu_status as enum (
   'deployed', 'for_deployment', 'no_update', 'partial_update'
 );
-create type concern_status as enum ('open', 'in_progress', 'resolved');
-create type concern_severity as enum ('low', 'medium', 'high', 'critical');
+create type ticket_status as enum ('open', 'in_progress', 'resolved');
+create type ticket_priority as enum ('low', 'medium', 'high', 'critical');
 create type requirement_status as enum ('pending', 'submitted', 'waived');
 create type schedule_type as enum ('orientation', 'network_installation', 'feedbacking', 'critical_visit');
 create type user_role as enum ('admin', 'user');
@@ -128,14 +128,40 @@ create table lgus (
   created_at timestamptz not null default now()
 );
 
-create table concerns (
+create table tickets (
   id uuid primary key default uuid_generate_v4(),
+  ticket_number bigserial unique,
   lgu_id uuid references lgus(id) on delete cascade,
   title text not null,
+  description text,
   category text,
-  status concern_status not null default 'open',
-  severity concern_severity not null default 'medium',
+  status ticket_status not null default 'open',
+  priority ticket_priority not null default 'medium',
+  requester_name text,
+  requester_email text,
+  assigned_person_id uuid references assigned_persons(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  resolved_at timestamptz
+);
+
+-- Troubleshooting log / conversation thread on a ticket. Any signed-in
+-- user can add a note (not just admins) — this is a running log of what
+-- was tried, not a change to the ticket's core fields.
+create table ticket_comments (
+  id uuid primary key default uuid_generate_v4(),
+  ticket_id uuid references tickets(id) on delete cascade,
+  author_email text,
+  body text not null,
   created_at timestamptz not null default now()
+);
+
+create table ticket_attachments (
+  id uuid primary key default uuid_generate_v4(),
+  ticket_id uuid references tickets(id) on delete cascade,
+  file_name text not null,
+  file_url text not null,
+  uploaded_at timestamptz not null default now()
 );
 
 create table schedules (
@@ -187,9 +213,9 @@ create table audit_logs (
 );
 
 -- Convenience view used by the dashboard's LGU status overview.
-create view lgu_open_concerns as
-  select lgu_id, count(*) as open_concerns
-  from concerns
+create view lgu_open_tickets as
+  select lgu_id, count(*) as open_tickets
+  from tickets
   where status <> 'resolved'
   group by lgu_id;
 
@@ -199,7 +225,9 @@ create view lgu_open_concerns as
 -- create/edit buttons from non-admins, but that's just UX, not security.
 -- ---------------------------------------------------------------------------
 alter table lgus enable row level security;
-alter table concerns enable row level security;
+alter table tickets enable row level security;
+alter table ticket_comments enable row level security;
+alter table ticket_attachments enable row level security;
 alter table schedules enable row level security;
 alter table requirements enable row level security;
 alter table documents enable row level security;
@@ -211,10 +239,20 @@ create policy "Admin write" on lgus for insert with check (public.is_admin());
 create policy "Admin update" on lgus for update using (public.is_admin());
 create policy "Admin delete" on lgus for delete using (public.is_admin());
 
-create policy "Authenticated read" on concerns for select using (auth.role() = 'authenticated');
-create policy "Admin write" on concerns for insert with check (public.is_admin());
-create policy "Admin update" on concerns for update using (public.is_admin());
-create policy "Admin delete" on concerns for delete using (public.is_admin());
+create policy "Authenticated read" on tickets for select using (auth.role() = 'authenticated');
+create policy "Admin write" on tickets for insert with check (public.is_admin());
+create policy "Admin update" on tickets for update using (public.is_admin());
+create policy "Admin delete" on tickets for delete using (public.is_admin());
+
+-- Comments are the exception to admin-only writes: anyone signed in can
+-- log a troubleshooting note, not just admins.
+create policy "Authenticated read" on ticket_comments for select using (auth.role() = 'authenticated');
+create policy "Authenticated insert" on ticket_comments for insert with check (auth.role() = 'authenticated');
+create policy "Admin delete" on ticket_comments for delete using (public.is_admin());
+
+create policy "Authenticated read" on ticket_attachments for select using (auth.role() = 'authenticated');
+create policy "Authenticated insert" on ticket_attachments for insert with check (auth.role() = 'authenticated');
+create policy "Admin delete" on ticket_attachments for delete using (public.is_admin());
 
 create policy "Authenticated read" on schedules for select using (auth.role() = 'authenticated');
 create policy "Admin write" on schedules for insert with check (public.is_admin());
@@ -239,7 +277,10 @@ create policy "Admin update" on network_devices for update using (public.is_admi
 create policy "Admin delete" on network_devices for delete using (public.is_admin());
 
 -- ---------------------------------------------------------------------------
--- Storage buckets: avatars (per-user) and branding (logo, admin-only)
+-- Storage buckets: avatars (per-user), branding (logo, admin-only), and
+-- ticket-attachments (private — not publicly readable like the others,
+-- since ticket attachments like ipconfig dumps or screenshots may contain
+-- internal network details).
 -- ---------------------------------------------------------------------------
 insert into storage.buckets (id, name, public)
 values ('avatars', 'avatars', true)
@@ -247,6 +288,10 @@ on conflict (id) do nothing;
 
 insert into storage.buckets (id, name, public)
 values ('branding', 'branding', true)
+on conflict (id) do nothing;
+
+insert into storage.buckets (id, name, public)
+values ('ticket-attachments', 'ticket-attachments', false)
 on conflict (id) do nothing;
 
 create policy "Avatar images are publicly readable" on storage.objects
@@ -270,6 +315,15 @@ create policy "Admins can upload branding assets" on storage.objects
 
 create policy "Admins can update branding assets" on storage.objects
   for update using (bucket_id = 'branding' and public.is_admin());
+
+create policy "Authenticated users can read ticket attachments" on storage.objects
+  for select using (bucket_id = 'ticket-attachments' and auth.role() = 'authenticated');
+
+create policy "Authenticated users can upload ticket attachments" on storage.objects
+  for insert with check (bucket_id = 'ticket-attachments' and auth.role() = 'authenticated');
+
+create policy "Admins can delete ticket attachments" on storage.objects
+  for delete using (bucket_id = 'ticket-attachments' and public.is_admin());
 
 -- ---------------------------------------------------------------------------
 -- After running this file:

@@ -6,7 +6,7 @@ import { useState } from "react";
 import {
   LayoutDashboard,
   Building2,
-  CircleAlert,
+  Ticket,
   CalendarDays,
   FileText,
   Network,
@@ -25,7 +25,7 @@ import { useSettings } from "@/lib/settings-context";
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/lgus", label: "LGUs", icon: Building2 },
-  { href: "/concerns", label: "Concerns", icon: CircleAlert },
+  { href: "/tickets", label: "Tickets", icon: Ticket },
   { href: "/schedule", label: "Schedule", icon: CalendarDays },
   { href: "/requirements", label: "Requirements", icon: FileText },
   { href: "/network", label: "Network", icon: Network },

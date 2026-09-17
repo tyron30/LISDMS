@@ -63,7 +63,7 @@ function NotificationsMenu() {
 
   function goTo(n: AppNotification) {
     setOpen(false);
-    router.push(`/lgus/${n.lguId}`);
+    router.push(n.href ?? `/lgus/${n.lguId}`);
   }
 
   return (
@@ -236,7 +236,7 @@ export function TopNav({
           className="relative hidden flex-1 items-center rounded-md border border-border bg-surface px-3 text-left text-sm text-muted hover:bg-bg md:flex md:w-72"
         >
           <Search className="h-4 w-4 shrink-0" />
-          <span className="ml-2 flex-1 truncate">Search LGUs, concerns, schedules...</span>
+          <span className="ml-2 flex-1 truncate">Search LGUs, tickets, schedules...</span>
           <kbd className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted">
             Ctrl K
           </kbd>

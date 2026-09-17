@@ -17,8 +17,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { isSupabaseConfigured, getSupabaseClient } from "@/lib/supabase";
-import { mockLgus, mockConcerns, mockRequirements } from "@/lib/mock-data";
-import { Lgu, Concern, Requirement, LguStatus } from "@/lib/types";
+import { mockLgus, mockTickets, mockRequirements } from "@/lib/mock-data";
+import { Lgu, Ticket, Requirement, LguStatus } from "@/lib/types";
 
 // Matches the semantic colors in tailwind.config.ts. Recharts needs real
 // color values (not Tailwind class names), and these aren't exposed as
@@ -35,7 +35,7 @@ const STATUS_LABEL: Record<LguStatus, string> = {
   partial_update: "Partial Update",
   no_update: "No Update",
 };
-const SEVERITY_COLOR: Record<Concern["severity"], string> = {
+const PRIORITY_COLOR: Record<Ticket["priority"], string> = {
   low: "#8F99A5",
   medium: "#D97706",
   high: "#D97706",
@@ -51,7 +51,7 @@ const tooltipStyle = {
 
 export default function ReportsPage() {
   const [lgus, setLgus] = useState<Lgu[]>([]);
-  const [concerns, setConcerns] = useState<Concern[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [requirements, setRequirements] = useState<Requirement[]>([]);
   const [loading, setLoading] = useState(true);
   const [usingMock, setUsingMock] = useState(false);
@@ -60,7 +60,7 @@ export default function ReportsPage() {
     async function load() {
       if (!isSupabaseConfigured) {
         setLgus(mockLgus);
-        setConcerns(mockConcerns);
+        setTickets(mockTickets);
         setRequirements(mockRequirements);
         setUsingMock(true);
         setLoading(false);
@@ -68,17 +68,17 @@ export default function ReportsPage() {
       }
       try {
         const supabase = getSupabaseClient();
-        const [lguRes, concernRes, reqRes] = await Promise.all([
+        const [lguRes, ticketRes, reqRes] = await Promise.all([
           supabase.from("lgus").select("*"),
-          supabase.from("concerns").select("*"),
+          supabase.from("tickets").select("*"),
           supabase.from("requirements").select("*"),
         ]);
         setLgus((lguRes.data as Lgu[]) ?? []);
-        setConcerns((concernRes.data as Concern[]) ?? []);
+        setTickets((ticketRes.data as Ticket[]) ?? []);
         setRequirements((reqRes.data as Requirement[]) ?? []);
       } catch {
         setLgus(mockLgus);
-        setConcerns(mockConcerns);
+        setTickets(mockTickets);
         setRequirements(mockRequirements);
         setUsingMock(true);
       } finally {
@@ -112,19 +112,19 @@ export default function ReportsPage() {
       .sort((a, b) => b.count - a.count);
   }, [lgus]);
 
-  const severityData = useMemo(() => {
-    const open = concerns.filter((c) => c.status !== "resolved");
-    const counts: Record<Concern["severity"], number> = { low: 0, medium: 0, high: 0, critical: 0 };
-    open.forEach((c) => {
-      counts[c.severity] = (counts[c.severity] ?? 0) + 1;
+  const priorityData = useMemo(() => {
+    const open = tickets.filter((t) => t.status !== "resolved");
+    const counts: Record<Ticket["priority"], number> = { low: 0, medium: 0, high: 0, critical: 0 };
+    open.forEach((t) => {
+      counts[t.priority] = (counts[t.priority] ?? 0) + 1;
     });
-    return (Object.keys(counts) as Concern["severity"][]).map((s) => ({
-      severity: s,
-      label: s.charAt(0).toUpperCase() + s.slice(1),
-      count: counts[s],
-      fill: SEVERITY_COLOR[s],
+    return (Object.keys(counts) as Ticket["priority"][]).map((p) => ({
+      priority: p,
+      label: p.charAt(0).toUpperCase() + p.slice(1),
+      count: counts[p],
+      fill: PRIORITY_COLOR[p],
     }));
-  }, [concerns]);
+  }, [tickets]);
 
   const districtData = useMemo(() => {
     const map = new Map<string, { total: number; deployed: number }>();
@@ -143,7 +143,7 @@ export default function ReportsPage() {
   const totalLgus = lgus.length;
   const deployedCount = lgus.filter((l) => l.status === "deployed").length;
   const deployedPct = totalLgus > 0 ? Math.round((deployedCount / totalLgus) * 100) : 0;
-  const openConcerns = concerns.filter((c) => c.status !== "resolved").length;
+  const openTickets = tickets.filter((t) => t.status !== "resolved").length;
   const today = new Date().toISOString().slice(0, 10);
   const overdueRequirements = requirements.filter((r) => r.status === "pending" && r.due_date && r.due_date < today).length;
 
@@ -168,7 +168,7 @@ export default function ReportsPage() {
             <>
               <StatCard label="Total LGUs" value={totalLgus} icon={Building2} />
               <StatCard label="Deployed" value={`${deployedPct}%`} icon={CircleCheck} />
-              <StatCard label="Open Concerns" value={openConcerns} icon={CircleAlert} tone="critical" />
+              <StatCard label="Open Tickets" value={openTickets} icon={CircleAlert} tone="critical" />
               <StatCard label="Overdue Requirements" value={overdueRequirements} icon={FileClock} tone="warning" />
             </>
           )}
@@ -199,22 +199,22 @@ export default function ReportsPage() {
           </Card>
 
           <Card className="p-4">
-            <p className="mb-4 text-sm font-semibold text-text">Open Concerns by Severity</p>
+            <p className="mb-4 text-sm font-semibold text-text">Open Tickets by Priority</p>
             {loading ? (
               <Skeleton className="h-64 w-full" />
-            ) : openConcerns === 0 ? (
-              <div className="flex h-64 items-center justify-center text-sm text-muted">No open concerns right now.</div>
+            ) : openTickets === 0 ? (
+              <div className="flex h-64 items-center justify-center text-sm text-muted">No open tickets right now.</div>
             ) : (
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={severityData}>
+                  <BarChart data={priorityData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--border))" />
                     <XAxis dataKey="label" stroke="rgb(var(--muted))" fontSize={12} />
                     <YAxis stroke="rgb(var(--muted))" fontSize={12} allowDecimals={false} />
                     <Tooltip contentStyle={tooltipStyle} />
                     <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                      {severityData.map((d) => (
-                        <Cell key={d.severity} fill={d.fill} />
+                      {priorityData.map((d) => (
+                        <Cell key={d.priority} fill={d.fill} />
                       ))}
                     </Bar>
                   </BarChart>

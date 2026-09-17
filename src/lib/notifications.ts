@@ -1,5 +1,5 @@
 import { isSupabaseConfigured, getSupabaseClient } from "./supabase";
-import { mockSchedule, mockConcerns, mockRequirements, mockNetworkDevices } from "./mock-data";
+import { mockSchedule, mockTickets, mockRequirements, mockNetworkDevices } from "./mock-data";
 
 export interface AppNotification {
   id: string;
@@ -7,6 +7,7 @@ export interface AppNotification {
   title: string;
   detail: string;
   severity: "info" | "warning" | "critical";
+  href?: string; // overrides the default /lgus/{lguId} destination when set
 }
 
 function todayStr() {
@@ -17,7 +18,7 @@ function daysFromNowStr(days: number) {
 }
 
 // Notifications are computed on the fly from existing data — upcoming
-// visits, high/critical open concerns, overdue requirements, offline
+// visits, high/critical open tickets, overdue requirements, offline
 // devices — rather than stored in their own table. Simple to reason about
 // and always reflects current state, at the cost of not being able to
 // "dismiss" one individually (nothing to persist that against yet).
@@ -38,15 +39,16 @@ export async function getNotifications(): Promise<AppNotification[]> {
           severity: "info",
         })
       );
-    mockConcerns
-      .filter((c) => c.status !== "resolved" && (c.severity === "critical" || c.severity === "high"))
-      .forEach((c) =>
+    mockTickets
+      .filter((t) => t.status !== "resolved" && (t.priority === "critical" || t.priority === "high"))
+      .forEach((t) =>
         notifications.push({
-          id: `concern-${c.id}`,
-          lguId: c.lgu_id,
-          title: `${c.severity === "critical" ? "Critical" : "High-severity"} concern — ${c.lgu_name}`,
-          detail: c.title,
-          severity: c.severity === "critical" ? "critical" : "warning",
+          id: `ticket-${t.id}`,
+          lguId: t.lgu_id,
+          title: `${t.priority === "critical" ? "Critical" : "High-priority"} ticket — ${t.lgu_name}`,
+          detail: `#${t.ticket_number} ${t.title}`,
+          severity: t.priority === "critical" ? "critical" : "warning",
+          href: `/tickets/${t.id}`,
         })
       );
     mockRequirements
@@ -76,9 +78,9 @@ export async function getNotifications(): Promise<AppNotification[]> {
 
   try {
     const supabase = getSupabaseClient();
-    const [scheduleRes, concernRes, reqRes, deviceRes] = await Promise.all([
+    const [scheduleRes, ticketRes, reqRes, deviceRes] = await Promise.all([
       supabase.from("schedules").select("id, title, date, lgu_id, lgus(name)").gte("date", today).lte("date", soon),
-      supabase.from("concerns").select("id, title, severity, lgu_id, lgus(name)").neq("status", "resolved").in("severity", ["high", "critical"]),
+      supabase.from("tickets").select("id, ticket_number, title, priority, lgu_id, lgus(name)").neq("status", "resolved").in("priority", ["high", "critical"]),
       supabase.from("requirements").select("id, name, due_date, lgu_id, lgus(name)").eq("status", "pending").lt("due_date", today),
       supabase.from("network_devices").select("id, device_name, lgu_id, lgus(name)").eq("status", "offline"),
     ]);
@@ -92,13 +94,14 @@ export async function getNotifications(): Promise<AppNotification[]> {
         severity: "info",
       })
     );
-    (concernRes.data ?? []).forEach((c: Record<string, unknown>) =>
+    (ticketRes.data ?? []).forEach((t: Record<string, unknown>) =>
       notifications.push({
-        id: `concern-${c.id}`,
-        lguId: c.lgu_id as string,
-        title: `${c.severity === "critical" ? "Critical" : "High-severity"} concern — ${(c.lgus as { name?: string } | null)?.name ?? "Unknown LGU"}`,
-        detail: c.title as string,
-        severity: c.severity === "critical" ? "critical" : "warning",
+        id: `ticket-${t.id}`,
+        lguId: t.lgu_id as string,
+        title: `${t.priority === "critical" ? "Critical" : "High-priority"} ticket — ${(t.lgus as { name?: string } | null)?.name ?? "Unknown LGU"}`,
+        detail: `#${t.ticket_number} ${t.title}`,
+        severity: t.priority === "critical" ? "critical" : "warning",
+        href: `/tickets/${t.id}`,
       })
     );
     (reqRes.data ?? []).forEach((r: Record<string, unknown>) =>

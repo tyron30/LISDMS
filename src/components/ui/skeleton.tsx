@@ -5,7 +5,7 @@ export function Skeleton({ className }: { className?: string }) {
 }
 
 // A generic stand-in for a list of cards/rows while data is loading —
-// used on Dashboard, LGUs, Concerns, Requirements, Network so the page
+// used on Dashboard, LGUs, Tickets, Requirements, Network so the page
 // never flashes an empty "0 results" state before real data arrives.
 export function ListSkeleton({ rows = 4 }: { rows?: number }) {
   return (

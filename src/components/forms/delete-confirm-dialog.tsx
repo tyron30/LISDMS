@@ -8,7 +8,7 @@ import { isSupabaseConfigured, getSupabaseClient } from "@/lib/supabase";
 import { useToast } from "@/lib/toast-context";
 import { logAction } from "@/lib/audit";
 
-// Reused for every destructive delete in the app: LGUs, concerns, schedules,
+// Reused for every destructive delete in the app: LGUs, tickets, schedules,
 // requirements, network devices. Always requires this confirmation — never
 // deletes on a single click.
 export function DeleteConfirmDialog({

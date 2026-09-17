@@ -2,7 +2,7 @@
 
 LGU IT Support & Deployment Monitoring System — a Next.js + Supabase scaffold
 built from the design spec (modern sidebar/topnav shell, dashboard, LGU
-profiles, concerns, schedule, requirements, reports, dark mode, mobile-first
+profiles, a ticketing system, schedule, requirements, reports, dark mode, mobile-first
 responsive layout).
 
 ## What's included
@@ -10,10 +10,10 @@ responsive layout).
 - Next.js 14 (App Router) + TypeScript + Tailwind
 - Design system primitives: `Button`, `Card`, `Badge`/`StatusBadge`, `Input`, `EmptyState`
 - App shell: collapsible desktop sidebar, mobile drawer, top nav with search/dark-mode/notifications
-- Pages: Dashboard, LGUs (list + detail with tabs), Concerns, Schedule, Requirements, Network (stub), Reports (with chart)
+- Pages: Dashboard, LGUs (list + detail with tabs), Tickets, Schedule, Requirements, Network, Reports
 - Light/dark mode via Tailwind `class` strategy, tokens in `src/app/globals.css`
 - Supabase client (`src/lib/supabase.ts`) with graceful fallback to sample data (`src/lib/mock-data.ts`) when env vars aren't set — so the UI is reviewable immediately after install
-- `supabase/schema.sql` — tables for `lgus`, `concerns`, `schedules`, `requirements`, `documents`, `audit_logs`, plus RLS policies
+- `supabase/schema.sql` — tables for `lgus`, `tickets`, `ticket_comments`, `schedules`, `requirements`, `documents`, `audit_logs`, plus RLS policies
 
 ## Authentication
 
@@ -371,6 +371,27 @@ actually opens or closes. This affected every dialog in the app (Add/Edit
 LGU, New Concern, Schedule Visit, etc.), not just the LGU name field — all
 fixed by the same change since they share one `Dialog` component.
 
+## Ticketing system (replaces "Concerns")
+
+"Concerns" evolved into a real ticketing system, since a flat list wasn't
+giving you what you actually needed for troubleshooting:
+
+- **Ticket numbers** — auto-incrementing (`#1042`), easy to reference on a phone call
+- **Priority** (Low/Medium/High/Critical) and **Category** (Network/Hardware/Software/Account-Access/Other)
+- **Assignment** to one of your Assigned Persons (Rafa/Rhea/Charles), same list used for LGUs
+- **A troubleshooting log** — `/tickets/[id]` has a running comment thread (any signed-in user can post an update, not just admins) so there's an actual record of what was tried and by whom, not just a single status flip
+- Full edit form, delete (admin-only, confirmation required), inline status changes from the list
+- Wired into the dashboard ("Open Tickets"), Reports ("Open Tickets by Priority"), notifications (high/critical tickets), and the command palette (Ctrl+K) — search a ticket by number or title and jump straight to it
+- `/concerns` still works as a redirect to `/tickets` in case anything was bookmarked
+
+**Ticket creation is still admin-entered for now** — LGU staff don't have a
+way to submit their own ticket yet. That's a deliberate scope decision, not
+an oversight: opening public submission means deciding between a
+no-login public form (simpler, but anyone with the link can submit as any
+LGU) versus giving LGU staff real accounts scoped to their own LGU (more
+identity/security work). The data model already has `requester_name` and
+`requester_email` columns ready for whichever direction gets picked.
+
 ## What's a stub (by design, given the size of the original spec)
 
 - Editing schedules (visits) isn't built yet — LGUs, concerns, requirements, and devices are all fully editable now
@@ -402,7 +423,7 @@ reading real data.
 
 ```
 src/
-  app/                 routes (dashboard, lgus, concerns, schedule, requirements, network, reports)
+  app/                 routes (dashboard, lgus, tickets, schedule, requirements, network, reports)
   components/
     layout/            Sidebar, TopNav, AppShell
     ui/                Button, Card, Badge, Input, EmptyState

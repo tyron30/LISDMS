@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Phone, Mail, CirclePlus, CalendarPlus, FilePlus, Pencil, Trash2 } from "lucide-react";
+import { Phone, Mail, TicketPlus, CalendarPlus, FilePlus, Pencil, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/badge";
 import { isSupabaseConfigured, getSupabaseClient } from "@/lib/supabase";
 import { useAuth } from "@/lib/use-auth";
-import { mockLgus, mockConcerns, mockRequirements } from "@/lib/mock-data";
-import { Lgu, Concern, Requirement } from "@/lib/types";
-import { NewConcernDialog } from "@/components/forms/new-concern-dialog";
+import { mockLgus, mockTickets, mockRequirements } from "@/lib/mock-data";
+import { Lgu, Ticket, Requirement } from "@/lib/types";
+import { TicketDialog } from "@/components/forms/ticket-dialog";
 import { ScheduleVisitDialog } from "@/components/forms/schedule-visit-dialog";
 import { AddRequirementDialog } from "@/components/forms/add-requirement-dialog";
 import { AddLguDialog } from "@/components/forms/add-lgu-dialog";
@@ -20,9 +21,9 @@ import { DeleteConfirmDialog } from "@/components/forms/delete-confirm-dialog";
 import { CredentialsTab } from "@/components/lgus/credentials-tab";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const TABS = ["Overview", "Contacts", "System", "Credentials", "Concerns", "Requirements", "Schedules", "Documents", "History"];
+const TABS = ["Overview", "Contacts", "System", "Credentials", "Tickets", "Requirements", "Schedules", "Documents", "History"];
 
-const CONCERN_STATUS_OPTIONS: { value: Concern["status"]; label: string }[] = [
+const TICKET_STATUS_OPTIONS: { value: Ticket["status"]; label: string }[] = [
   { value: "open", label: "Open" },
   { value: "in_progress", label: "In Progress" },
   { value: "resolved", label: "Resolved" },
@@ -38,17 +39,17 @@ export default function LguDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [lgu, setLgu] = useState<Lgu | null>(null);
-  const [concerns, setConcerns] = useState<Concern[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [requirements, setRequirements] = useState<Requirement[]>([]);
   const [tab, setTab] = useState("Overview");
-  const [concernDialogOpen, setConcernDialogOpen] = useState(false);
+  const [ticketDialogOpen, setTicketDialogOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [requirementDialogOpen, setRequirementDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteLguOpen, setDeleteLguOpen] = useState(false);
-  const [deletingConcern, setDeletingConcern] = useState<Concern | null>(null);
+  const [deletingTicket, setDeletingTicket] = useState<Ticket | null>(null);
   const [deletingRequirement, setDeletingRequirement] = useState<Requirement | null>(null);
-  const [editingConcern, setEditingConcern] = useState<Concern | null>(null);
+  const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
   const [editingRequirement, setEditingRequirement] = useState<Requirement | null>(null);
   const { isAdmin } = useAuth();
 
@@ -56,15 +57,19 @@ export default function LguDetailPage() {
     if (!isSupabaseConfigured) {
       const mock = mockLgus.find((l) => l.id === params.id) ?? mockLgus[0];
       setLgu(mock);
-      setConcerns(mockConcerns.filter((c) => c.lgu_id === mock.id));
+      setTickets(mockTickets.filter((t) => t.lgu_id === mock.id));
       setRequirements(mockRequirements.filter((r) => r.lgu_id === mock.id));
       return;
     }
     try {
       const supabase = getSupabaseClient();
-      const [lguRes, concernsRes, requirementsRes] = await Promise.all([
+      const [lguRes, ticketsRes, requirementsRes] = await Promise.all([
         supabase.from("lgus").select("*, assigned_persons(name)").eq("id", params.id).maybeSingle(),
-        supabase.from("concerns").select("*").eq("lgu_id", params.id).order("created_at", { ascending: false }),
+        supabase
+          .from("tickets")
+          .select("*, assigned_persons(name)")
+          .eq("lgu_id", params.id)
+          .order("created_at", { ascending: false }),
         supabase.from("requirements").select("*").eq("lgu_id", params.id).order("created_at", { ascending: false }),
       ]);
       const lguRow = lguRes.data as (Record<string, unknown> & { assigned_persons?: { name?: string } | null }) | null;
@@ -76,12 +81,16 @@ export default function LguDetailPage() {
             } as Lgu)
           : null
       );
-      setConcerns((concernsRes.data as Concern[]) ?? []);
+      const mappedTickets = (ticketsRes.data ?? []).map((row: Record<string, unknown>) => ({
+        ...row,
+        assigned_person_name: (row.assigned_persons as { name?: string } | null)?.name ?? null,
+      })) as Ticket[];
+      setTickets(mappedTickets);
       setRequirements((requirementsRes.data as Requirement[]) ?? []);
     } catch {
       const mock = mockLgus.find((l) => l.id === params.id) ?? mockLgus[0];
       setLgu(mock);
-      setConcerns(mockConcerns.filter((c) => c.lgu_id === mock.id));
+      setTickets(mockTickets.filter((t) => t.lgu_id === mock.id));
       setRequirements(mockRequirements.filter((r) => r.lgu_id === mock.id));
     }
   }
@@ -117,7 +126,7 @@ export default function LguDetailPage() {
     );
   }
 
-  const openConcernCount = concerns.filter((c) => c.status !== "resolved").length;
+  const openTicketCount = tickets.filter((t) => t.status !== "resolved").length;
   const pendingRequirementCount = requirements.filter((r) => r.status === "pending").length;
 
   return (
@@ -151,8 +160,8 @@ export default function LguDetailPage() {
                 <Button size="sm" variant="destructive" onClick={() => setDeleteLguOpen(true)}>
                   <Trash2 className="h-3.5 w-3.5" /> Delete
                 </Button>
-                <Button size="sm" variant="secondary" onClick={() => setConcernDialogOpen(true)}>
-                  <CirclePlus className="h-3.5 w-3.5" /> New Concern
+                <Button size="sm" variant="secondary" onClick={() => setTicketDialogOpen(true)}>
+                  <TicketPlus className="h-3.5 w-3.5" /> New Ticket
                 </Button>
                 <Button size="sm" onClick={() => setScheduleDialogOpen(true)}>
                   <CalendarPlus className="h-3.5 w-3.5" /> Schedule Visit
@@ -203,8 +212,8 @@ export default function LguDetailPage() {
               </p>
             </Card>
             <Card className="p-4">
-              <p className="text-xs text-muted">Open Concerns</p>
-              <p className="mt-1 text-sm font-medium text-text">{openConcernCount}</p>
+              <p className="text-xs text-muted">Open Tickets</p>
+              <p className="mt-1 text-sm font-medium text-text">{openTicketCount}</p>
             </Card>
             <Card className="p-4">
               <p className="text-xs text-muted">Pending Requirements</p>
@@ -232,47 +241,52 @@ export default function LguDetailPage() {
           />
         )}
 
-        {tab === "Concerns" && (
+        {tab === "Tickets" && (
           <Card>
             <CardContent className="divide-y divide-border p-0">
-              {concerns.length === 0 && <p className="p-4 text-sm text-muted">No concerns on record.</p>}
-              {concerns.map((c) => (
-                <div key={c.id} className="flex items-center justify-between px-4 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-text">{c.title}</p>
-                    <p className="text-xs text-muted">{c.category} • {new Date(c.created_at).toLocaleDateString("en-PH")}</p>
+              {tickets.length === 0 && <p className="p-4 text-sm text-muted">No tickets on record.</p>}
+              {tickets.map((t) => (
+                <div key={t.id} className="flex items-center justify-between px-4 py-3">
+                  <div className="min-w-0">
+                    <Link href={`/tickets/${t.id}`} className="truncate text-sm font-medium text-text hover:text-brand">
+                      #{t.ticket_number} — {t.title}
+                    </Link>
+                    <p className="truncate text-xs text-muted">
+                      {t.category} • {t.assigned_person_name ? `Assigned: ${t.assigned_person_name} • ` : ""}
+                      {new Date(t.created_at).toLocaleDateString("en-PH")}
+                    </p>
                   </div>
                   {isAdmin ? (
-                    <div className="flex items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-2">
                       <InlineStatusSelect
-                        table="concerns"
-                        id={c.id}
-                        value={c.status}
-                        options={CONCERN_STATUS_OPTIONS}
-                        logLabel="Updated concern status"
-                        target={c.title}
+                        table="tickets"
+                        id={t.id}
+                        value={t.status}
+                        options={TICKET_STATUS_OPTIONS}
+                        logLabel="Updated ticket status"
+                        target={`#${t.ticket_number} ${t.title}`}
                         onUpdated={(newStatus) =>
-                          setConcerns((prev) => prev.map((x) => (x.id === c.id ? { ...x, status: newStatus } : x)))
+                          setTickets((prev) => prev.map((x) => (x.id === t.id ? { ...x, status: newStatus } : x)))
                         }
                         className="w-32"
                       />
                       <button
-                        onClick={() => setEditingConcern(c)}
+                        onClick={() => setEditingTicket(t)}
                         className="text-muted hover:text-text"
-                        aria-label={`Edit ${c.title}`}
+                        aria-label={`Edit ticket #${t.ticket_number}`}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button
-                        onClick={() => setDeletingConcern(c)}
+                        onClick={() => setDeletingTicket(t)}
                         className="text-muted hover:text-critical"
-                        aria-label={`Delete ${c.title}`}
+                        aria-label={`Delete ticket #${t.ticket_number}`}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   ) : (
-                    <span className="text-xs font-medium capitalize text-muted">{c.status.replace("_", " ")}</span>
+                    <span className="shrink-0 text-xs font-medium capitalize text-muted">{t.status.replace("_", " ")}</span>
                   )}
                 </div>
               ))}
@@ -361,11 +375,11 @@ export default function LguDetailPage() {
         {isAdmin && (
           <>
             <button
-              onClick={() => setConcernDialogOpen(true)}
+              onClick={() => setTicketDialogOpen(true)}
               className="flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 border-l border-border text-muted hover:text-brand"
             >
-              <CirclePlus className="h-5 w-5" />
-              <span className="text-[10px] font-medium">Concern</span>
+              <TicketPlus className="h-5 w-5" />
+              <span className="text-[10px] font-medium">Ticket</span>
             </button>
             <button
               onClick={() => setScheduleDialogOpen(true)}
@@ -391,18 +405,18 @@ export default function LguDetailPage() {
         table="lgus"
         id={lgu.id}
         itemLabel={lgu.name}
-        warning="This also deletes all of its concerns, schedules, requirements, documents, and network devices."
+        warning="This also deletes all of its tickets, schedules, requirements, documents, and network devices."
         logLabel="Deleted LGU"
       />
-      {deletingConcern && (
+      {deletingTicket && (
         <DeleteConfirmDialog
-          open={!!deletingConcern}
-          onClose={() => setDeletingConcern(null)}
+          open={!!deletingTicket}
+          onClose={() => setDeletingTicket(null)}
           onDeleted={load}
-          table="concerns"
-          id={deletingConcern.id}
-          itemLabel={deletingConcern.title}
-          logLabel="Deleted concern"
+          table="tickets"
+          id={deletingTicket.id}
+          itemLabel={`#${deletingTicket.ticket_number} ${deletingTicket.title}`}
+          logLabel="Deleted ticket"
         />
       )}
       {deletingRequirement && (
@@ -416,20 +430,20 @@ export default function LguDetailPage() {
           logLabel="Deleted requirement"
         />
       )}
-      <NewConcernDialog
-        open={concernDialogOpen}
-        onClose={() => setConcernDialogOpen(false)}
+      <TicketDialog
+        open={ticketDialogOpen}
+        onClose={() => setTicketDialogOpen(false)}
         onCreated={load}
         lguOptions={[{ id: lgu.id, name: lgu.name }]}
         fixedLguId={lgu.id}
       />
-      <NewConcernDialog
-        open={!!editingConcern}
-        onClose={() => setEditingConcern(null)}
+      <TicketDialog
+        open={!!editingTicket}
+        onClose={() => setEditingTicket(null)}
         onCreated={load}
         lguOptions={[{ id: lgu.id, name: lgu.name }]}
         fixedLguId={lgu.id}
-        concern={editingConcern ?? undefined}
+        ticket={editingTicket ?? undefined}
       />
       <ScheduleVisitDialog
         open={scheduleDialogOpen}

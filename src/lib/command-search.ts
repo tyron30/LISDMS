@@ -1,12 +1,13 @@
 import { isSupabaseConfigured, getSupabaseClient } from "./supabase";
-import { mockLgus, mockConcerns, mockSchedule, mockRequirements } from "./mock-data";
+import { mockLgus, mockTickets, mockSchedule, mockRequirements } from "./mock-data";
 
 export interface CommandResult {
   id: string;
   lguId: string;
   primary: string; // LGU name — every result belongs to an LGU
-  secondary: string; // the matched detail (concern title, requirement name, etc.)
-  category: "LGU" | "Concern" | "Schedule" | "Requirement";
+  secondary: string; // the matched detail (ticket title, requirement name, etc.)
+  category: "LGU" | "Ticket" | "Schedule" | "Requirement";
+  href?: string; // overrides the default /lgus/{lguId} destination when set
 }
 
 export async function searchAll(query: string): Promise<CommandResult[]> {
@@ -19,9 +20,18 @@ export async function searchAll(query: string): Promise<CommandResult[]> {
     mockLgus
       .filter((l) => l.name.toLowerCase().includes(lower) || (l.province ?? "").toLowerCase().includes(lower))
       .forEach((l) => results.push({ id: l.id, lguId: l.id, primary: l.name, secondary: l.province, category: "LGU" }));
-    mockConcerns
-      .filter((c) => c.title.toLowerCase().includes(lower) || c.lgu_name.toLowerCase().includes(lower))
-      .forEach((c) => results.push({ id: c.id, lguId: c.lgu_id, primary: c.lgu_name, secondary: c.title, category: "Concern" }));
+    mockTickets
+      .filter((t) => t.title.toLowerCase().includes(lower) || t.lgu_name.toLowerCase().includes(lower) || String(t.ticket_number).includes(lower))
+      .forEach((t) =>
+        results.push({
+          id: t.id,
+          lguId: t.lgu_id,
+          primary: t.lgu_name,
+          secondary: `#${t.ticket_number} ${t.title}`,
+          category: "Ticket",
+          href: `/tickets/${t.id}`,
+        })
+      );
     mockSchedule
       .filter((s) => s.title.toLowerCase().includes(lower) || s.lgu_name.toLowerCase().includes(lower))
       .forEach((s) => results.push({ id: s.id, lguId: s.lgu_id, primary: s.lgu_name, secondary: s.title, category: "Schedule" }));
@@ -34,9 +44,9 @@ export async function searchAll(query: string): Promise<CommandResult[]> {
   try {
     const supabase = getSupabaseClient();
     const like = `%${q}%`;
-    const [lguRes, concernRes, scheduleRes, reqRes] = await Promise.all([
+    const [lguRes, ticketRes, scheduleRes, reqRes] = await Promise.all([
       supabase.from("lgus").select("id, name, province").ilike("name", like).limit(5),
-      supabase.from("concerns").select("id, title, lgu_id, lgus(name)").ilike("title", like).limit(5),
+      supabase.from("tickets").select("id, ticket_number, title, lgu_id, lgus(name)").ilike("title", like).limit(5),
       supabase.from("schedules").select("id, title, lgu_id, lgus(name)").ilike("title", like).limit(5),
       supabase.from("requirements").select("id, name, lgu_id, lgus(name)").ilike("name", like).limit(5),
     ]);
@@ -45,13 +55,14 @@ export async function searchAll(query: string): Promise<CommandResult[]> {
     (lguRes.data ?? []).forEach((l: Record<string, unknown>) =>
       results.push({ id: l.id as string, lguId: l.id as string, primary: l.name as string, secondary: (l.province as string) ?? "", category: "LGU" })
     );
-    (concernRes.data ?? []).forEach((c: Record<string, unknown>) =>
+    (ticketRes.data ?? []).forEach((t: Record<string, unknown>) =>
       results.push({
-        id: c.id as string,
-        lguId: c.lgu_id as string,
-        primary: (c.lgus as { name?: string } | null)?.name ?? "Unknown LGU",
-        secondary: c.title as string,
-        category: "Concern",
+        id: t.id as string,
+        lguId: t.lgu_id as string,
+        primary: (t.lgus as { name?: string } | null)?.name ?? "Unknown LGU",
+        secondary: `#${t.ticket_number} ${t.title}`,
+        category: "Ticket",
+        href: `/tickets/${t.id}`,
       })
     );
     (scheduleRes.data ?? []).forEach((s: Record<string, unknown>) =>

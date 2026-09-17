@@ -8,8 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { isSupabaseConfigured, getSupabaseClient } from "@/lib/supabase";
 import { useAuth } from "@/lib/use-auth";
-import { mockLgus, mockSchedule, mockConcerns } from "@/lib/mock-data";
-import { Lgu, ScheduleEvent, Concern } from "@/lib/types";
+import { mockLgus, mockSchedule, mockTickets } from "@/lib/mock-data";
+import { Lgu, ScheduleEvent, Ticket } from "@/lib/types";
 import { StatCardSkeleton, ListSkeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 
@@ -23,7 +23,7 @@ export default function DashboardPage() {
   const { email } = useAuth();
   const [lgus, setLgus] = useState<Lgu[]>([]);
   const [schedule, setSchedule] = useState<ScheduleEvent[]>([]);
-  const [concerns, setConcerns] = useState<Concern[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [usingMock, setUsingMock] = useState(false);
 
@@ -32,18 +32,18 @@ export default function DashboardPage() {
       if (!isSupabaseConfigured) {
         setLgus(mockLgus);
         setSchedule(mockSchedule);
-        setConcerns(mockConcerns);
+        setTickets(mockTickets.filter((t) => t.status !== "resolved"));
         setUsingMock(true);
         setLoading(false);
         return;
       }
       try {
         const supabase = getSupabaseClient();
-        const [lguRes, scheduleRes, concernRes] = await Promise.all([
+        const [lguRes, scheduleRes, ticketRes] = await Promise.all([
           supabase.from("lgus").select("*"),
           // Schedules only store lgu_id — join lgus to get a display name.
           supabase.from("schedules").select("*, lgus(name)").order("date", { ascending: true }).limit(5),
-          supabase.from("concerns").select("*").eq("status", "open"),
+          supabase.from("tickets").select("*").neq("status", "resolved"),
         ]);
         setLgus((lguRes.data as Lgu[]) ?? []);
         const mappedSchedule = (scheduleRes.data ?? []).map((row: Record<string, unknown>) => ({
@@ -51,11 +51,11 @@ export default function DashboardPage() {
           lgu_name: (row.lgus as { name?: string } | null)?.name ?? "Unknown LGU",
         })) as ScheduleEvent[];
         setSchedule(mappedSchedule);
-        setConcerns((concernRes.data as Concern[]) ?? []);
+        setTickets((ticketRes.data as Ticket[]) ?? []);
       } catch {
         setLgus(mockLgus);
         setSchedule(mockSchedule);
-        setConcerns(mockConcerns);
+        setTickets(mockTickets.filter((t) => t.status !== "resolved"));
         setUsingMock(true);
       } finally {
         setLoading(false);
@@ -91,7 +91,7 @@ export default function DashboardPage() {
           ) : (
             <>
               <StatCard label="LGUs" value={lgus.length} icon={Building2} />
-              <StatCard label="Open Concerns" value={concerns.length} icon={CircleAlert} tone="critical" />
+              <StatCard label="Open Tickets" value={tickets.length} icon={CircleAlert} tone="critical" />
               <StatCard label="For Deployment" value={forDeployment} icon={ClipboardList} tone="warning" />
               <StatCard label="Upcoming Visits" value={upcomingVisits} icon={CalendarClock} />
             </>

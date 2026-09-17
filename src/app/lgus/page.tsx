@@ -39,17 +39,17 @@ export default function LgusPage() {
     try {
       const supabase = getSupabaseClient();
       const today = new Date().toISOString().slice(0, 10);
-      const [lguRes, concernsRes, requirementsRes, scheduleRes] = await Promise.all([
+      const [lguRes, ticketsRes, requirementsRes, scheduleRes] = await Promise.all([
         // Join assigned_persons to show a name instead of just the id.
         supabase.from("lgus").select("*, assigned_persons(name)").order("name"),
-        supabase.from("concerns").select("lgu_id, status").neq("status", "resolved"),
+        supabase.from("tickets").select("lgu_id, status").neq("status", "resolved"),
         supabase.from("requirements").select("lgu_id, status").eq("status", "pending"),
         supabase.from("schedules").select("lgu_id, date").gte("date", today).order("date"),
       ]);
 
-      const openConcernCounts = new Map<string, number>();
-      (concernsRes.data ?? []).forEach((c: { lgu_id: string }) => {
-        openConcernCounts.set(c.lgu_id, (openConcernCounts.get(c.lgu_id) ?? 0) + 1);
+      const openTicketCounts = new Map<string, number>();
+      (ticketsRes.data ?? []).forEach((c: { lgu_id: string }) => {
+        openTicketCounts.set(c.lgu_id, (openTicketCounts.get(c.lgu_id) ?? 0) + 1);
       });
 
       const pendingReqCounts = new Map<string, number>();
@@ -67,7 +67,7 @@ export default function LgusPage() {
       const merged = ((lguRes.data as Record<string, unknown>[]) ?? []).map((row) => ({
         ...row,
         assigned_person_name: (row.assigned_persons as { name?: string } | null)?.name ?? null,
-        open_concerns: openConcernCounts.get(row.id as string) ?? 0,
+        open_tickets: openTicketCounts.get(row.id as string) ?? 0,
         pending_requirements: pendingReqCounts.get(row.id as string) ?? 0,
         next_visit: nextVisit.get(row.id as string) ?? null,
       })) as Lgu[];
@@ -147,7 +147,7 @@ export default function LgusPage() {
                       <th className="px-4 py-2.5">LGU</th>
                       <th className="px-4 py-2.5">Status</th>
                       <th className="px-4 py-2.5">Assigned</th>
-                      <th className="px-4 py-2.5">Concerns</th>
+                      <th className="px-4 py-2.5">Tickets</th>
                       <th className="px-4 py-2.5">App</th>
                       <th className="px-4 py-2.5">Next Visit</th>
                       {isAdmin && <th className="px-4 py-2.5" />}
@@ -166,7 +166,7 @@ export default function LgusPage() {
                           <StatusBadge status={lgu.status} />
                         </td>
                         <td className="px-4 py-3 text-muted">{lgu.assigned_person_name || "—"}</td>
-                        <td className="px-4 py-3 tabular-nums text-text">{lgu.open_concerns}</td>
+                        <td className="px-4 py-3 tabular-nums text-text">{lgu.open_tickets}</td>
                         <td className="px-4 py-3 font-mono text-xs text-muted">{lgu.app_version}</td>
                         <td className="px-4 py-3 text-muted">
                           {lgu.next_visit
@@ -220,8 +220,8 @@ export default function LgusPage() {
                           <p className="font-medium text-text">{lgu.assigned_person_name || "—"}</p>
                         </div>
                         <div>
-                          <p className="text-muted">Concerns</p>
-                          <p className="font-medium text-text">{lgu.open_concerns} open</p>
+                          <p className="text-muted">Tickets</p>
+                          <p className="font-medium text-text">{lgu.open_tickets} open</p>
                         </div>
                         <div>
                           <p className="text-muted">Next Visit</p>
@@ -256,7 +256,7 @@ export default function LgusPage() {
           table="lgus"
           id={deletingLgu.id}
           itemLabel={deletingLgu.name}
-          warning="This also deletes all of its concerns, schedules, requirements, documents, and network devices."
+          warning="This also deletes all of its tickets, schedules, requirements, documents, and network devices."
           logLabel="Deleted LGU"
         />
       )}

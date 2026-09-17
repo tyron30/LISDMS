@@ -8,45 +8,51 @@ import { useToast } from "@/lib/toast-context";
 import { logAction } from "@/lib/audit";
 
 // A dropdown that writes straight to Supabase on change — used anywhere a
-// record just needs its status flipped (concern resolved, requirement
-// submitted, device back online) without opening a full edit form.
+// record just needs one field flipped (ticket status, priority, assignee;
+// requirement submitted; device back online) without opening a full edit
+// form. Defaults to updating a "status" column; pass `column` to target a
+// different one (e.g. "priority", "assigned_person_id").
 export function InlineStatusSelect<T extends string>({
   table,
   id,
+  column = "status",
   value,
   options,
   logLabel,
   target,
   onUpdated,
   className,
+  successMessage = "Updated.",
 }: {
   table: string;
   id: string;
+  column?: string;
   value: T;
   options: { value: T; label: string }[];
   logLabel: string;
   target: string;
   onUpdated: (newValue: T) => void;
   className?: string;
+  successMessage?: string;
 }) {
   const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
 
   async function handleChange(newValue: T) {
     if (!isSupabaseConfigured) {
-      showToast("Connect Supabase to update status. This is sample data.", "error");
+      showToast("Connect Supabase to update this. This is sample data.", "error");
       return;
     }
     setSaving(true);
     try {
       const supabase = getSupabaseClient();
-      const { error } = await supabase.from(table).update({ status: newValue }).eq("id", id);
+      const { error } = await supabase.from(table).update({ [column]: newValue || null }).eq("id", id);
       if (error) throw error;
       onUpdated(newValue);
       logAction(logLabel, target);
-      showToast("Status updated.");
+      showToast(successMessage);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Couldn't update status.", "error");
+      showToast(err instanceof Error ? err.message : "Couldn't update.", "error");
     } finally {
       setSaving(false);
     }

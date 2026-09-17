@@ -63,7 +63,7 @@ function UsersPageContent() {
     <div className="mx-auto max-w-4xl space-y-4">
       <div>
         <p className="text-sm text-muted">
-          Admins can create and edit LGUs, concerns, schedules, and requirements. Viewers can only
+          Admins can create and edit LGUs, tickets, schedules, and requirements. Viewers can only
           browse. Manage who has which role below.
         </p>
         {!isSupabaseConfigured && (

@@ -134,7 +134,7 @@ function AuditLogsContent() {
           title={logs.length === 0 ? "No activity yet" : "No matching activity"}
           description={
             logs.length === 0
-              ? "Actions like sign-ins, role changes, and creating LGUs/concerns/schedules will show up here."
+              ? "Actions like sign-ins, role changes, and creating LGUs/tickets/schedules will show up here."
               : "Try a different search term or filter."
           }
         />

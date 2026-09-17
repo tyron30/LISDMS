@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Building2, CircleAlert, CalendarDays, FileText, CornerDownLeft } from "lucide-react";
+import { Search, Building2, Ticket as TicketIcon, CalendarDays, FileText, CornerDownLeft } from "lucide-react";
 import { useCommandPalette } from "@/lib/command-palette-context";
 import { searchAll, CommandResult } from "@/lib/command-search";
 
 const CATEGORY_ICON: Record<CommandResult["category"], typeof Building2> = {
   LGU: Building2,
-  Concern: CircleAlert,
+  Ticket: TicketIcon,
   Schedule: CalendarDays,
   Requirement: FileText,
 };
@@ -52,7 +52,7 @@ export function CommandPalette() {
 
   function navigateTo(result: CommandResult) {
     setOpen(false);
-    router.push(`/lgus/${result.lguId}`);
+    router.push(result.href ?? `/lgus/${result.lguId}`);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -83,7 +83,7 @@ export function CommandPalette() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search LGUs, concerns, schedules, requirements..."
+            placeholder="Search LGUs, tickets, schedules, requirements..."
             className="w-full bg-transparent text-sm text-text outline-none placeholder:text-muted"
           />
           <kbd className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted">Esc</kbd>
