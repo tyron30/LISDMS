@@ -117,7 +117,12 @@ export default function DashboardPage() {
                   {schedule.map((event) => (
                     <div key={event.id} className="flex items-center justify-between py-3">
                       <div>
-                        <p className="text-sm font-medium text-text">{event.lgu_name}</p>
+                        <Link
+                          href={`/lgus/${event.lgu_id}`}
+                          className="text-sm font-medium text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand"
+                        >
+                          {event.lgu_name}
+                        </Link>
                         <p className="text-xs text-muted">{event.title}</p>
                       </div>
                       <div className="text-right text-xs text-muted">
@@ -137,8 +142,11 @@ export default function DashboardPage() {
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex items-center justify-between">
               <CardTitle>LGU Status Overview</CardTitle>
+              <Link href="/lgus" className="text-xs font-medium text-brand hover:underline">
+                View all
+              </Link>
             </CardHeader>
             <CardContent className="space-y-3 p-4">
               {loading ? (
@@ -146,7 +154,12 @@ export default function DashboardPage() {
               ) : (
                 lgus.slice(0, 5).map((lgu) => (
                   <div key={lgu.id} className="flex items-center justify-between">
-                    <span className="text-sm text-text">{lgu.name}</span>
+                    <Link
+                      href={`/lgus/${lgu.id}`}
+                      className="text-sm text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand"
+                    >
+                      {lgu.name}
+                    </Link>
                     <StatusBadge status={lgu.status} />
                   </div>
                 ))

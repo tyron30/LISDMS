@@ -392,11 +392,40 @@ LGU) versus giving LGU staff real accounts scoped to their own LGU (more
 identity/security work). The data model already has `requester_name` and
 `requester_email` columns ready for whichever direction gets picked.
 
+## Clickable things should look clickable
+
+Links used to only reveal themselves on hover (a color change), which means
+anyone on a touch screen — or just scanning the page — had no way to know
+a name was clickable. Fixed with a consistent convention across the app:
+
+- **Links are always link-colored and underlined** (a soft underline that
+  strengthens on hover), never plain text that only changes on hover
+- **List rows show a trailing chevron (`>`)** — a universal "this leads
+  somewhere" cue — on the LGU list and Tickets list, on both desktop and mobile
+- **Whole rows are clickable** on LGU and Ticket lists (not just the name),
+  while the edit/delete icons, status dropdowns, and inner links inside a row
+  are guarded so they don't also trigger the row navigation
+- The LGU name stays a real `<a>` link underneath the row click, so keyboard
+  navigation, screen readers, and right-click "open in new tab" all still work
+- Dashboard: LGU names in "LGU Status Overview" and "Upcoming Visits" were
+  plain text with no link at all; they now link to the LGU, and the overview
+  card has a "View all" shortcut to `/lgus`
+
+## LGU page tabs: System, Schedules, Documents, History
+
+These four tabs used to show a "scaffolded" placeholder. They're all real now:
+
+- **System** — the LGU's deployment profile (system, app version, network setup, status, date deployed, district) plus the **network devices installed at that site**, with add/edit/delete and an offline count. The global list is still at `/network`.
+- **Schedules** — every visit for this LGU, split into Upcoming and Past, with schedule/edit/delete. Visits can now be **edited** (previously only created or deleted), from here or anywhere the visit dialog is used.
+- **Documents** — upload MOAs, endorsement letters, site surveys, etc. (admins upload/delete; any signed-in user can download). Files go to a **private** `lgu-documents` storage bucket, 10 MB limit; downloads use short-lived (60 second) signed links rather than permanent public URLs, since these are government documents. Deleting a document removes both the record and the stored file.
+- **History** — a newest-first timeline of everything for this LGU: when it was added, its deployment date, tickets opened and resolved, requirements added, visits (upcoming ones are flagged), and documents uploaded. It is built from the records themselves rather than the audit log, because audit entries store a free-text target that can't be reliably tied to one LGU. Limitation: requirement status changes aren't timestamped in the schema, so only when a requirement was *added* appears.
+
+Database: run `supabase/009_lgu_documents.sql` on an existing install (renames the unused `documents.file_url` to `file_path`, adds `file_size`/`uploaded_by`, creates the private bucket and its policies). Fresh installs get this from `schema.sql`.
+
 ## What's a stub (by design, given the size of the original spec)
 
 - Editing schedules (visits) isn't built yet — LGUs, concerns, requirements, and devices are all fully editable now
 - Preferences page isn't wired to real settings yet; Activity is a placeholder pointing at `audit_logs`
-- Document upload is still a placeholder
 - Real-time subscriptions / notifications
 
 These are all straightforward to build on top of the patterns already in

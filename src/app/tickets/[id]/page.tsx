@@ -169,7 +169,7 @@ export default function TicketDetailPage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="flex items-center gap-2 text-xs text-muted">
             <Building2 className="h-3.5 w-3.5 shrink-0" />
-            <Link href={`/lgus/${ticket.lgu_id}`} className="truncate text-text hover:text-brand hover:underline">
+            <Link href={`/lgus/${ticket.lgu_id}`} className="truncate text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand">
               {ticket.lgu_name}
             </Link>
           </div>

@@ -6,6 +6,7 @@ export interface AssignedPerson {
 }
 
 export interface Lgu {
+  created_at?: string;
   id: string;
   name: string;
   province: string;
@@ -76,6 +77,7 @@ export interface ScheduleEvent {
 }
 
 export interface Requirement {
+  created_at?: string;
   id: string;
   lgu_id: string;
   lgu_name: string;
@@ -98,4 +100,14 @@ export interface NetworkDevice {
   status: DeviceStatus;
   notes: string | null;
   last_seen: string | null;
+}
+
+export interface LguDocument {
+  id: string;
+  lgu_id: string;
+  file_name: string;
+  file_path: string;
+  file_size: number | null;
+  uploaded_by: string | null;
+  uploaded_at: string;
 }

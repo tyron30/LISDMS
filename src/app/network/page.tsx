@@ -184,7 +184,7 @@ export default function NetworkPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <Link href={`/lgus/${d.lgu_id}`} className="text-text hover:text-brand hover:underline">
+                          <Link href={`/lgus/${d.lgu_id}`} className="text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand">
                             {d.lgu_name}
                           </Link>
                         </td>

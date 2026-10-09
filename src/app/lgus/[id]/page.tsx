@@ -19,6 +19,10 @@ import { AddLguDialog } from "@/components/forms/add-lgu-dialog";
 import { InlineStatusSelect } from "@/components/forms/inline-status-select";
 import { DeleteConfirmDialog } from "@/components/forms/delete-confirm-dialog";
 import { CredentialsTab } from "@/components/lgus/credentials-tab";
+import { SystemTab } from "@/components/lgus/system-tab";
+import { SchedulesTab } from "@/components/lgus/schedules-tab";
+import { DocumentsTab } from "@/components/lgus/documents-tab";
+import { HistoryTab } from "@/components/lgus/history-tab";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const TABS = ["Overview", "Contacts", "System", "Credentials", "Tickets", "Requirements", "Schedules", "Documents", "History"];
@@ -42,6 +46,7 @@ export default function LguDetailPage() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [requirements, setRequirements] = useState<Requirement[]>([]);
   const [tab, setTab] = useState("Overview");
+  const [reloadKey, setReloadKey] = useState(0);
   const [ticketDialogOpen, setTicketDialogOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [requirementDialogOpen, setRequirementDialogOpen] = useState(false);
@@ -54,6 +59,7 @@ export default function LguDetailPage() {
   const { isAdmin } = useAuth();
 
   async function load() {
+    setReloadKey((k) => k + 1);
     if (!isSupabaseConfigured) {
       const mock = mockLgus.find((l) => l.id === params.id) ?? mockLgus[0];
       setLgu(mock);
@@ -248,7 +254,7 @@ export default function LguDetailPage() {
               {tickets.map((t) => (
                 <div key={t.id} className="flex items-center justify-between px-4 py-3">
                   <div className="min-w-0">
-                    <Link href={`/tickets/${t.id}`} className="truncate text-sm font-medium text-text hover:text-brand">
+                    <Link href={`/tickets/${t.id}`} className="truncate text-sm font-medium text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand">
                       #{t.ticket_number} — {t.title}
                     </Link>
                     <p className="truncate text-xs text-muted">
@@ -348,10 +354,16 @@ export default function LguDetailPage() {
           </div>
         )}
 
-        {["System", "Schedules", "Documents", "History"].includes(tab) && (
-          <Card className="p-8 text-center text-sm text-muted">
-            This section is scaffolded and ready to be wired to your Supabase tables.
-          </Card>
+        {tab === "System" && <SystemTab lgu={lgu} isAdmin={isAdmin} reloadKey={reloadKey} />}
+
+        {tab === "Schedules" && (
+          <SchedulesTab lguId={lgu.id} lguName={lgu.name} isAdmin={isAdmin} reloadKey={reloadKey} />
+        )}
+
+        {tab === "Documents" && <DocumentsTab lguId={lgu.id} isAdmin={isAdmin} reloadKey={reloadKey} />}
+
+        {tab === "History" && (
+          <HistoryTab lgu={lgu} tickets={tickets} requirements={requirements} reloadKey={reloadKey} />
         )}
       </div>
 

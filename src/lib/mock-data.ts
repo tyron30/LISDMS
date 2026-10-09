@@ -1,7 +1,7 @@
 // Placeholder data shown only when Supabase isn't configured yet,
 // so the UI is reviewable immediately after install. Replace by
 // running supabase/schema.sql and connecting real env vars.
-import { Lgu, Ticket, TicketComment, ScheduleEvent, Requirement, NetworkDevice, AssignedPerson } from "./types";
+import { Lgu, Ticket, TicketComment, ScheduleEvent, Requirement, NetworkDevice, AssignedPerson, LguDocument } from "./types";
 
 export const mockAssignedPersons: AssignedPerson[] = [
   { id: "p1", name: "Charles" },
@@ -181,4 +181,16 @@ export const mockNetworkDevices: NetworkDevice[] = [
   { id: "n4", lgu_id: "2", lgu_name: "Babatngon", device_name: "QR Printer", device_type: "printer", ip_address: null, mac_address: null, status: "maintenance", notes: "Awaiting replacement part", last_seen: "2026-08-30T09:00:00" },
   { id: "n5", lgu_id: "3", lgu_name: "Palo", device_name: "Main Router", device_type: "router", ip_address: "192.168.3.1", mac_address: "AA:BB:CC:00:33:11", status: "online", notes: null, last_seen: "2026-09-01T07:15:00" },
   { id: "n6", lgu_id: "4", lgu_name: "Tacloban City", device_name: "Access Point - Lobby", device_type: "access_point", ip_address: "192.168.4.5", mac_address: "AA:BB:CC:00:44:11", status: "online", notes: null, last_seen: "2026-09-01T08:00:00" },
+];
+
+export const mockDocuments: LguDocument[] = [
+  {
+    id: "d1",
+    lgu_id: "1",
+    file_name: "MOA_Sta_Fe_signed.pdf",
+    file_path: "1/MOA_Sta_Fe_signed.pdf",
+    file_size: 482000,
+    uploaded_by: "rafa@lisdms.gov.ph",
+    uploaded_at: "2026-08-15T10:00:00",
+  },
 ];

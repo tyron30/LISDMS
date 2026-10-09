@@ -187,7 +187,11 @@ create table documents (
   id uuid primary key default uuid_generate_v4(),
   lgu_id uuid references lgus(id) on delete cascade,
   file_name text not null,
-  file_url text not null,
+  -- Path inside the private lgu-documents storage bucket, not a public URL —
+  -- downloads go through a short-lived signed URL generated on demand.
+  file_path text not null,
+  file_size bigint,
+  uploaded_by text,
   uploaded_at timestamptz not null default now()
 );
 
@@ -324,6 +328,19 @@ create policy "Authenticated users can upload ticket attachments" on storage.obj
 
 create policy "Admins can delete ticket attachments" on storage.objects
   for delete using (bucket_id = 'ticket-attachments' and public.is_admin());
+
+insert into storage.buckets (id, name, public)
+values ('lgu-documents', 'lgu-documents', false)
+on conflict (id) do nothing;
+
+create policy "Authenticated users can read LGU documents" on storage.objects
+  for select using (bucket_id = 'lgu-documents' and auth.role() = 'authenticated');
+
+create policy "Admins can upload LGU documents" on storage.objects
+  for insert with check (bucket_id = 'lgu-documents' and public.is_admin());
+
+create policy "Admins can delete LGU documents" on storage.objects
+  for delete using (bucket_id = 'lgu-documents' and public.is_admin());
 
 -- ---------------------------------------------------------------------------
 -- After running this file:

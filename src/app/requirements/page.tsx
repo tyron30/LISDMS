@@ -97,7 +97,7 @@ export default function RequirementsPage() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-text">{r.name}</p>
                   <p className="truncate text-xs text-muted">
-                    <Link href={`/lgus/${r.lgu_id}`} className="hover:text-brand hover:underline">
+                    <Link href={`/lgus/${r.lgu_id}`} className="text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand">
                       {r.lgu_name}
                     </Link>
                     {r.due_date && (

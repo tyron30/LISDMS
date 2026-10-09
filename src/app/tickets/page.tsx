@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, Pencil, Trash2, Search, ChevronRight } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ const PRIORITY_DOT: Record<TicketPriority, string> = {
 };
 
 export default function TicketsPage() {
+  const router = useRouter();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [lguOptions, setLguOptions] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,14 +142,25 @@ export default function TicketsPage() {
         ) : (
           <div className="space-y-2">
             {filtered.map((t) => (
-              <Card key={t.id} className="flex items-center gap-3 p-4 transition-colors hover:bg-bg/40">
+              <Card
+                key={t.id}
+                onClick={() => router.push(`/tickets/${t.id}`)}
+                className="flex cursor-pointer items-center gap-3 p-4 transition-colors hover:bg-bg/40"
+              >
                 <span className={`h-2 w-2 shrink-0 rounded-full ${PRIORITY_DOT[t.priority]}`} aria-hidden />
                 <div className="min-w-0 flex-1">
-                  <Link href={`/tickets/${t.id}`} className="truncate text-sm font-medium text-text hover:text-brand">
+                  <Link
+                    href={`/tickets/${t.id}`}
+                    className="truncate text-sm font-medium text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand"
+                  >
                     #{t.ticket_number} — {t.title}
                   </Link>
                   <p className="truncate text-xs text-muted">
-                    <Link href={`/lgus/${t.lgu_id}`} className="hover:text-brand hover:underline">
+                    <Link
+                      href={`/lgus/${t.lgu_id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand"
+                    >
                       {t.lgu_name}
                     </Link>
                     {" • "}
@@ -156,7 +169,7 @@ export default function TicketsPage() {
                     {new Date(t.created_at).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-3">
+                <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
                   <span className="hidden text-xs font-medium capitalize text-muted sm:inline">{t.priority}</span>
                   {isAdmin ? (
                     <InlineStatusSelect
@@ -193,6 +206,7 @@ export default function TicketsPage() {
                     </div>
                   )}
                 </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted" aria-hidden />
               </Card>
             ))}
           </div>

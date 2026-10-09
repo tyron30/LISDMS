@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, Plus, Pencil, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, Plus, Pencil, Trash2, ChevronRight } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ const DISTRICT_ORDER = ["1st District", "2nd District", "3rd District", "4th Dis
 const NO_DISTRICT = "No District Set";
 
 export default function LgusPage() {
+  const router = useRouter();
   const [lgus, setLgus] = useState<Lgu[]>([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -151,13 +153,22 @@ export default function LgusPage() {
                       <th className="px-4 py-2.5">App</th>
                       <th className="px-4 py-2.5">Next Visit</th>
                       {isAdmin && <th className="px-4 py-2.5" />}
+                      <th className="w-8 px-2 py-2.5" />
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {group.lgus.map((lgu) => (
-                      <tr key={lgu.id} className="hover:bg-bg/60">
+                      <tr
+                        key={lgu.id}
+                        onClick={() => router.push(`/lgus/${lgu.id}`)}
+                        className="cursor-pointer hover:bg-bg/60"
+                      >
                         <td className="px-4 py-3">
-                          <Link href={`/lgus/${lgu.id}`} className="font-medium text-text hover:text-brand">
+                          <Link
+                            href={`/lgus/${lgu.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="font-medium text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand"
+                          >
                             {lgu.name}
                           </Link>
                           <p className="text-xs text-muted">{lgu.province}</p>
@@ -180,14 +191,20 @@ export default function LgusPage() {
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-3">
                               <button
-                                onClick={() => setEditingLgu(lgu)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingLgu(lgu);
+                                }}
                                 className="text-muted hover:text-text"
                                 aria-label={`Edit ${lgu.name}`}
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
                               <button
-                                onClick={() => setDeletingLgu(lgu)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeletingLgu(lgu);
+                                }}
                                 className="text-muted hover:text-critical"
                                 aria-label={`Delete ${lgu.name}`}
                               >
@@ -196,6 +213,9 @@ export default function LgusPage() {
                             </div>
                           </td>
                         )}
+                        <td className="w-8 px-2 py-3">
+                          <ChevronRight className="h-4 w-4 text-muted" aria-hidden />
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -206,13 +226,18 @@ export default function LgusPage() {
               <div className="space-y-3 md:hidden">
                 {group.lgus.map((lgu) => (
                   <Link key={lgu.id} href={`/lgus/${lgu.id}`}>
-                    <Card className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-medium text-text">{lgu.name}</p>
-                          <p className="text-xs text-muted">{lgu.province}</p>
+                    <Card className="p-4 transition-colors active:bg-bg/60">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <p className="font-medium text-text">{lgu.name}</p>
+                            <p className="text-xs text-muted">{lgu.province}</p>
+                          </div>
                         </div>
-                        <StatusBadge status={lgu.status} />
+                        <div className="flex shrink-0 items-center gap-2">
+                          <StatusBadge status={lgu.status} />
+                          <ChevronRight className="h-4 w-4 text-muted" aria-hidden />
+                        </div>
                       </div>
                       <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                         <div>
