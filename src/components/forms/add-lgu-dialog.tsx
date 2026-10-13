@@ -12,6 +12,14 @@ import { logAction } from "@/lib/audit";
 import { Lgu, LguStatus, AssignedPerson } from "@/lib/types";
 import { mockAssignedPersons } from "@/lib/mock-data";
 import { LguNameAutocomplete } from "./lgu-name-autocomplete";
+import { designationFor } from "@/lib/leyte-towns";
+import {
+  MOA_STATUS_OPTIONS,
+  SIGNOFF_OPTIONS,
+  ORIENTATION_OPTIONS,
+  DESIGNATION_OPTIONS,
+  SETUP_OPTIONS,
+} from "@/lib/lgu-options";
 
 const STATUS_OPTIONS: { value: LguStatus; label: string }[] = [
   { value: "for_deployment", label: "For Deployment" },
@@ -20,7 +28,7 @@ const STATUS_OPTIONS: { value: LguStatus; label: string }[] = [
   { value: "no_update", label: "No Update" },
 ];
 
-const DISTRICT_OPTIONS = ["1st District", "2nd District", "3rd District", "4th District", "5th District"];
+const DISTRICT_OPTIONS = ["Provincial Government", "1st District", "2nd District", "3rd District", "4th District", "5th District"];
 
 const EMPTY = {
   name: "",
@@ -37,6 +45,12 @@ const EMPTY = {
   anydesk_id: "",
   anydesk_password: "",
   assigned_person_id: "",
+  head_of_agency: "",
+  designation: "",
+  moa_status: "",
+  sp_resolution: "",
+  gov_signature: "",
+  orientation_status: "",
 };
 
 type FormState = typeof EMPTY;
@@ -57,6 +71,12 @@ function lguToForm(lgu: Lgu): FormState {
     anydesk_id: lgu.anydesk_id ?? "",
     anydesk_password: lgu.anydesk_password ?? "",
     assigned_person_id: lgu.assigned_person_id ?? "",
+    head_of_agency: lgu.head_of_agency ?? "",
+    designation: lgu.designation ?? "",
+    moa_status: lgu.moa_status ?? "",
+    sp_resolution: lgu.sp_resolution ?? "",
+    gov_signature: lgu.gov_signature ?? "",
+    orientation_status: lgu.orientation_status ?? "",
   };
 }
 
@@ -131,6 +151,12 @@ export function AddLguDialog({
         anydesk_id: form.anydesk_id || null,
         anydesk_password: form.anydesk_password || null,
         assigned_person_id: form.assigned_person_id || null,
+        head_of_agency: form.head_of_agency || null,
+        designation: form.designation || null,
+        moa_status: form.moa_status || null,
+        sp_resolution: form.sp_resolution || null,
+        gov_signature: form.gov_signature || null,
+        orientation_status: form.orientation_status || null,
       };
 
       if (isEdit && lgu) {
@@ -163,11 +189,12 @@ export function AddLguDialog({
             <LguNameAutocomplete
               value={form.name}
               onChange={(v) => update("name", v)}
-              onSelectTown={(district) => {
-                // Auto-fill district when it's known, and default the
-                // province to Leyte since the whole system is Leyte-only
-                // for now — the admin can still change either afterward.
-                if (district) update("district", district);
+              onSelectTown={(town) => {
+                // Auto-fill district and the mayor's title when known, and
+                // default the province to Leyte since the whole system is
+                // Leyte-only for now — all editable afterward.
+                if (town.district) update("district", town.district);
+                update("designation", designationFor(town.name));
                 if (!form.province) update("province", "Leyte");
               }}
             />
@@ -210,12 +237,39 @@ export function AddLguDialog({
 
         <div className="space-y-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">Contact Information</p>
-          <Field label="Focal Person">
-            <Input value={form.focal_person} onChange={(e) => update("focal_person", e.target.value)} />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Head of Agency">
+              <Input
+                value={form.head_of_agency}
+                onChange={(e) => update("head_of_agency", e.target.value)}
+                placeholder="e.g. Hon. Juan Dela Cruz"
+              />
+            </Field>
+            <Field label="Designation">
+              <Select value={form.designation} onChange={(e) => update("designation", e.target.value)}>
+                <option value="">Not set</option>
+                {DESIGNATION_OPTIONS.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+          <Field label="QDTS Point Person(s)">
+            <Input
+              value={form.focal_person}
+              onChange={(e) => update("focal_person", e.target.value)}
+              placeholder="Separate several people with /"
+            />
           </Field>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Contact Number">
-              <Input value={form.contact_number} onChange={(e) => update("contact_number", e.target.value)} />
+            <Field label="Contact Number(s)">
+              <Input
+                value={form.contact_number}
+                onChange={(e) => update("contact_number", e.target.value)}
+                placeholder="Separate several numbers with /"
+              />
             </Field>
             <Field label="Email">
               <Input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} />
@@ -230,15 +284,77 @@ export function AddLguDialog({
               <Input value={form.system} onChange={(e) => update("system", e.target.value)} placeholder="e.g. QMER" />
             </Field>
             <Field label="App Version">
-              <Input value={form.app_version} onChange={(e) => update("app_version", e.target.value)} placeholder="e.g. v2.4.1" />
+              <Input
+                value={form.app_version}
+                onChange={(e) => update("app_version", e.target.value)}
+                placeholder="e.g. Mobile Version 3.2"
+                list="app-version-suggestions"
+              />
+              <datalist id="app-version-suggestions">
+                <option value="Mobile Version 3.2" />
+                <option value="Old Mobile version 2.8 (without API update)" />
+              </datalist>
             </Field>
           </div>
-          <Field label="Network Setup">
-            <Input value={form.network_setup} onChange={(e) => update("network_setup", e.target.value)} placeholder="e.g. LAN + Online" />
+          <Field label="QDTS Setup">
+            <Select value={form.network_setup} onChange={(e) => update("network_setup", e.target.value)}>
+              <option value="">Not set</option>
+              {/* Keep any older free-text value (e.g. "LAN + Online") selectable. */}
+              {form.network_setup && !SETUP_OPTIONS.includes(form.network_setup) && (
+                <option value={form.network_setup}>{form.network_setup}</option>
+              )}
+              {SETUP_OPTIONS.map((o) => (
+                <option key={o} value={o}>
+                  {o}
+                </option>
+              ))}
+            </Select>
           </Field>
           <Field label="Date Deployed">
             <Input type="date" value={form.date_deployed} onChange={(e) => update("date_deployed", e.target.value)} />
           </Field>
+        </div>
+
+        <div className="space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">MOA &amp; Orientation</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="With MOA">
+              <Select value={form.moa_status} onChange={(e) => update("moa_status", e.target.value)}>
+                {MOA_STATUS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="With SP Resolution">
+              <Select value={form.sp_resolution} onChange={(e) => update("sp_resolution", e.target.value)}>
+                {SIGNOFF_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="With Gov's Signature">
+              <Select value={form.gov_signature} onChange={(e) => update("gov_signature", e.target.value)}>
+                {SIGNOFF_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="Orientation">
+              <Select value={form.orientation_status} onChange={(e) => update("orientation_status", e.target.value)}>
+                {ORIENTATION_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
         </div>
 
         <div className="space-y-3">

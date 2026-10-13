@@ -88,7 +88,7 @@ export function SystemTab({ lgu, isAdmin, reloadKey }: { lgu: Lgu; isAdmin: bool
             <Detail label="App Version">
               <span className="font-mono">{lgu.app_version || "—"}</span>
             </Detail>
-            <Detail label="Network Setup">{lgu.network_setup || "—"}</Detail>
+            <Detail label="QDTS Setup">{lgu.network_setup || "—"}</Detail>
             <Detail label="Deployment Status">
               <StatusBadge status={lgu.status} />
             </Detail>

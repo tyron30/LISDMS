@@ -5,8 +5,19 @@ export interface AssignedPerson {
   name: string;
 }
 
+export type MoaStatus = "yes" | "no" | "for_preparation" | "for_discussion" | "for_schedule" | "na";
+export type SignoffStatus = "yes" | "none" | "na";
+export type OrientationStatus = "ok" | "upcoming" | "for_schedule" | "no_orientation" | "tbd";
+export type NoteCategory = "general" | "moa" | "orientation" | "procurement" | "hardware";
+
 export interface Lgu {
   created_at?: string;
+  head_of_agency?: string | null;
+  designation?: string | null;
+  moa_status?: MoaStatus | null;
+  sp_resolution?: SignoffStatus | null;
+  gov_signature?: SignoffStatus | null;
+  orientation_status?: OrientationStatus | null;
   id: string;
   name: string;
   province: string;
@@ -110,4 +121,14 @@ export interface LguDocument {
   file_size: number | null;
   uploaded_by: string | null;
   uploaded_at: string;
+}
+
+export interface LguNote {
+  id: string;
+  lgu_id: string;
+  category: NoteCategory;
+  body: string;
+  note_date: string;
+  author_email: string | null;
+  created_at: string;
 }

@@ -7,6 +7,8 @@ import {
   LayoutDashboard,
   Building2,
   Ticket,
+  ClipboardCheck,
+  FileSignature,
   CalendarDays,
   FileText,
   Network,
@@ -25,6 +27,8 @@ import { useSettings } from "@/lib/settings-context";
 const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/lgus", label: "LGUs", icon: Building2 },
+  { href: "/assignments", label: "Assignments", icon: ClipboardCheck },
+  { href: "/moa", label: "MOA Tracker", icon: FileSignature },
   { href: "/tickets", label: "Tickets", icon: Ticket },
   { href: "/schedule", label: "Schedule", icon: CalendarDays },
   { href: "/requirements", label: "Requirements", icon: FileText },

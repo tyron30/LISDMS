@@ -422,6 +422,23 @@ These four tabs used to show a "scaffolded" placeholder. They're all real now:
 
 Database: run `supabase/009_lgu_documents.sql` on an existing install (renames the unused `documents.file_url` to `file_path`, adds `file_size`/`uploaded_by`, creates the private bucket and its policies). Fresh installs get this from `schema.sql`.
 
+## Aligned with the QDTS Tracker spreadsheet
+
+The system now mirrors the tabs of the team's tracking spreadsheet, using the same vocabulary:
+
+| Spreadsheet tab | In LISDMS |
+|---|---|
+| **Directory** (Head of Agency, Designation, QDTS Point Person, Contact Numbers, Email, Date of Deployment, Assigned Person) | Add/Edit LGU form and the LGU's **Contacts** tab. Several people or numbers in one cell, separated by `/`, are split so each number gets its own tap-to-call link. Designation is pre-filled from the LGU (Governor / Municipal Mayor / City Mayor). |
+| **Anydesk / deployment** (Date of Deployment, QDTS Setup, Version, Any Desk) | QDTS Setup is now an Online / LAN dropdown; Version suggests the versions in use; AnyDesk stays on the Credentials tab (masked, reveal is audit-logged). |
+| **MOA Status** (With MOA, With SP Resolution, With Gov's Signature, Remarks) | The **MOA Tracker** page (`/moa`): the three checks per LGU, editable in place by admins, with progress totals and the latest MOA remark. Also on each LGU's Overview, and in Reports. |
+| **Assignments** (grouped by Rafa / Rhea / Charles; MOA, Orientation, Concerns by date) | The **Assignments** page (`/assignments`): LGUs grouped under the person responsible, with MOA and orientation editable in place and the latest dated update. |
+| **"Concerns 6/9", "Concerns 7/10", ... columns** and MOA remarks | The LGU's **Updates** tab: a dated running log with categories (General, MOA, Orientation, Procurement, Hardware). Anyone signed in can add an update; admins can delete. Also shown in the History timeline. |
+| **Province of Leyte** row above the districts | A "Provincial Government" group, listed first. |
+
+Database: run `supabase/010_spreadsheet_alignment.sql` on an existing install (adds the new LGU columns and the `lgu_notes` table; additive, nothing is removed). Fresh installs get it from `schema.sql`.
+
+Not yet covered because they weren't in the shared screenshots: the **2026 Reports**, **Specs Sheet**, **Coordination Flow**, **2026 Goals** and **Calendar 2026** tabs.
+
 ## What's a stub (by design, given the size of the original spec)
 
 - Editing schedules (visits) isn't built yet — LGUs, concerns, requirements, and devices are all fully editable now

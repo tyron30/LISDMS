@@ -23,9 +23,12 @@ import { SystemTab } from "@/components/lgus/system-tab";
 import { SchedulesTab } from "@/components/lgus/schedules-tab";
 import { DocumentsTab } from "@/components/lgus/documents-tab";
 import { HistoryTab } from "@/components/lgus/history-tab";
+import { NotesTab } from "@/components/lgus/notes-tab";
+import { ChecklistBadge } from "@/components/ui/checklist-badge";
+import { MOA_STATUS_OPTIONS, SIGNOFF_OPTIONS, ORIENTATION_OPTIONS, splitList, telHref, firstPhoneHref } from "@/lib/lgu-options";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const TABS = ["Overview", "Contacts", "System", "Credentials", "Tickets", "Requirements", "Schedules", "Documents", "History"];
+const TABS = ["Overview", "Contacts", "System", "Credentials", "Tickets", "Requirements", "Updates", "Schedules", "Documents", "History"];
 
 const TICKET_STATUS_OPTIONS: { value: Ticket["status"]; label: string }[] = [
   { value: "open", label: "Open" },
@@ -148,7 +151,7 @@ export default function LguDetailPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             {/* Real tel:/mailto: links — no dialog needed, just hand off to the OS/browser. */}
-            <a href={lgu.contact_number ? `tel:${lgu.contact_number.replace(/\s+/g, "")}` : undefined}>
+            <a href={firstPhoneHref(lgu.contact_number)}>
               <Button size="sm" variant="secondary" disabled={!lgu.contact_number}>
                 <Phone className="h-3.5 w-3.5" /> Call
               </Button>
@@ -198,7 +201,7 @@ export default function LguDetailPage() {
               <p className="mt-1 font-mono text-sm font-medium text-text">{lgu.system} {lgu.app_version}</p>
             </Card>
             <Card className="p-4">
-              <p className="text-xs text-muted">Network</p>
+              <p className="text-xs text-muted">QDTS Setup</p>
               <p className="mt-1 text-sm font-medium text-text">{lgu.network_setup}</p>
             </Card>
             <Card className="p-4">
@@ -228,15 +231,78 @@ export default function LguDetailPage() {
           </div>
         )}
 
+        {tab === "Overview" && (
+          <div className="space-y-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">MOA &amp; Orientation</h3>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <Card className="p-4">
+                <p className="mb-1.5 text-xs text-muted">With MOA</p>
+                <ChecklistBadge value={lgu.moa_status} options={MOA_STATUS_OPTIONS} />
+              </Card>
+              <Card className="p-4">
+                <p className="mb-1.5 text-xs text-muted">With SP Resolution</p>
+                <ChecklistBadge value={lgu.sp_resolution} options={SIGNOFF_OPTIONS} />
+              </Card>
+              <Card className="p-4">
+                <p className="mb-1.5 text-xs text-muted">With Gov&apos;s Signature</p>
+                <ChecklistBadge value={lgu.gov_signature} options={SIGNOFF_OPTIONS} />
+              </Card>
+              <Card className="p-4">
+                <p className="mb-1.5 text-xs text-muted">Orientation</p>
+                <ChecklistBadge value={lgu.orientation_status} options={ORIENTATION_OPTIONS} />
+              </Card>
+            </div>
+          </div>
+        )}
+
         {tab === "Contacts" && (
-          <Card>
-            <CardHeader><CardTitle>Focal Person</CardTitle></CardHeader>
-            <CardContent className="space-y-1 text-sm">
-              <p className="font-medium text-text">{lgu.focal_person || "—"}</p>
-              <p className="text-muted">{lgu.contact_number || "—"}</p>
-              <p className="text-muted">{lgu.email || "—"}</p>
-            </CardContent>
-          </Card>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader><CardTitle>Head of Agency</CardTitle></CardHeader>
+              <CardContent className="space-y-1 text-sm">
+                <p className="font-medium text-text">{lgu.head_of_agency || "—"}</p>
+                <p className="text-muted">{lgu.designation || "No designation set"}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader><CardTitle>QDTS Point Person(s)</CardTitle></CardHeader>
+              <CardContent className="space-y-3 text-sm">
+                {splitList(lgu.focal_person).length === 0 ? (
+                  <p className="text-muted">—</p>
+                ) : (
+                  <ul className="space-y-0.5">
+                    {splitList(lgu.focal_person).map((p) => (
+                      <li key={p} className="font-medium text-text">{p}</li>
+                    ))}
+                  </ul>
+                )}
+                <div className="space-y-1">
+                  <p className="text-xs text-muted">Contact numbers</p>
+                  {splitList(lgu.contact_number).length === 0 ? (
+                    <p className="text-muted">—</p>
+                  ) : (
+                    splitList(lgu.contact_number).map((n) => (
+                      <a key={n} href={telHref(n)} className="block text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand">
+                        {n}
+                      </a>
+                    ))
+                  )}
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted">Email</p>
+                  {splitList(lgu.email).length === 0 ? (
+                    <p className="text-muted">—</p>
+                  ) : (
+                    splitList(lgu.email).map((m) => (
+                      <a key={m} href={`mailto:${m}`} className="block break-all text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand">
+                        {m}
+                      </a>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {tab === "Credentials" && (
@@ -354,6 +420,8 @@ export default function LguDetailPage() {
           </div>
         )}
 
+        {tab === "Updates" && <NotesTab lguId={lgu.id} lguName={lgu.name} isAdmin={isAdmin} reloadKey={reloadKey} />}
+
         {tab === "System" && <SystemTab lgu={lgu} isAdmin={isAdmin} reloadKey={reloadKey} />}
 
         {tab === "Schedules" && (
@@ -371,7 +439,7 @@ export default function LguDetailPage() {
           bottom of the screen instead of scrolling back up to the header. */}
       <div className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-border bg-surface/95 shadow-[0_-4px_16px_-4px_rgba(0,0,0,0.15)] backdrop-blur-sm md:hidden">
         <a
-          href={lgu.contact_number ? `tel:${lgu.contact_number.replace(/\s+/g, "")}` : undefined}
+          href={firstPhoneHref(lgu.contact_number)}
           className={`flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 ${!lgu.contact_number ? "pointer-events-none opacity-40" : "text-muted hover:text-brand"}`}
         >
           <Phone className="h-5 w-5" />

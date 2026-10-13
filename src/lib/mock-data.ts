@@ -1,7 +1,7 @@
 // Placeholder data shown only when Supabase isn't configured yet,
 // so the UI is reviewable immediately after install. Replace by
 // running supabase/schema.sql and connecting real env vars.
-import { Lgu, Ticket, TicketComment, ScheduleEvent, Requirement, NetworkDevice, AssignedPerson, LguDocument } from "./types";
+import { Lgu, Ticket, TicketComment, ScheduleEvent, Requirement, NetworkDevice, AssignedPerson, LguDocument, LguNote } from "./types";
 
 export const mockAssignedPersons: AssignedPerson[] = [
   { id: "p1", name: "Charles" },
@@ -193,4 +193,10 @@ export const mockDocuments: LguDocument[] = [
     uploaded_by: "rafa@lisdms.gov.ph",
     uploaded_at: "2026-08-15T10:00:00",
   },
+];
+
+export const mockLguNotes: LguNote[] = [
+  { id: "n1", lgu_id: "1", category: "hardware", body: "Hardware prep. SP an MOA — waiting on the Mayor's office.", note_date: "2026-06-09", author_email: "rafa@lisdms.gov.ph", created_at: "2026-06-09T09:00:00" },
+  { id: "n2", lgu_id: "1", category: "moa", body: "Follow-up on MOA signature.", note_date: "2026-07-10", author_email: "rafa@lisdms.gov.ph", created_at: "2026-07-10T09:00:00" },
+  { id: "n3", lgu_id: "2", category: "procurement", body: "Waiting for procurement of the printer.", note_date: "2026-08-25", author_email: "rhea@lisdms.gov.ph", created_at: "2026-08-25T09:00:00" },
 ];

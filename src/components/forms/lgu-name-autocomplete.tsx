@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { LEYTE_TOWNS } from "@/lib/leyte-towns";
+import { LEYTE_TOWNS, LeyteTown } from "@/lib/leyte-towns";
 import { cn } from "@/lib/utils";
 
 // Free-text input with suggestions (not a locked dropdown — "Province of
@@ -16,7 +16,7 @@ export function LguNameAutocomplete({
 }: {
   value: string;
   onChange: (value: string) => void;
-  onSelectTown: (district: string | null) => void;
+  onSelectTown: (town: LeyteTown) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -38,7 +38,7 @@ export function LguNameAutocomplete({
 
   function select(town: (typeof LEYTE_TOWNS)[number]) {
     onChange(town.name);
-    onSelectTown(town.district);
+    onSelectTown(town);
     setOpen(false);
   }
 

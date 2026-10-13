@@ -274,6 +274,43 @@ export default function ReportsPage() {
               </div>
             )}
           </Card>
+
+          <Card className="p-4">
+            <p className="mb-1 text-sm font-semibold text-text">MOA Progress</p>
+            <p className="mb-4 text-xs text-muted">Across LGUs where an MOA applies.</p>
+            {loading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-6 w-full" />
+                <Skeleton className="h-6 w-full" />
+                <Skeleton className="h-6 w-full" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {([
+                  ["With MOA", "moa_status"],
+                  ["With SP Resolution", "sp_resolution"],
+                  ["With Gov's Signature", "gov_signature"],
+                ] as const).map(([label, key]) => {
+                  const applicable = lgus.filter((l) => l.moa_status !== "na");
+                  const done = applicable.filter((l) => l[key] === "yes").length;
+                  const pct = applicable.length > 0 ? Math.round((done / applicable.length) * 100) : 0;
+                  return (
+                    <div key={key}>
+                      <div className="mb-1 flex items-center justify-between text-xs">
+                        <span className="font-medium text-text">{label}</span>
+                        <span className="text-muted">
+                          {done}/{applicable.length} ({pct}%)
+                        </span>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-border/60">
+                        <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
         </div>
       </div>
     </AppShell>

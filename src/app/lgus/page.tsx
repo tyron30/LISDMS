@@ -19,7 +19,7 @@ import { DeleteConfirmDialog } from "@/components/forms/delete-confirm-dialog";
 import { TableSkeleton } from "@/components/ui/skeleton";
 
 // LGUs without a district set land in this group, shown last.
-const DISTRICT_ORDER = ["1st District", "2nd District", "3rd District", "4th District", "5th District"];
+const DISTRICT_ORDER = ["Provincial Government", "1st District", "2nd District", "3rd District", "4th District", "5th District"];
 const NO_DISTRICT = "No District Set";
 
 export default function LgusPage() {

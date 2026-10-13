@@ -114,6 +114,12 @@ create table lgus (
   name text not null,
   province text not null,
   district text,
+  head_of_agency text,
+  designation text,
+  moa_status text check (moa_status in ('yes','no','for_preparation','for_discussion','for_schedule','na')),
+  sp_resolution text check (sp_resolution in ('yes','none','na')),
+  gov_signature text check (gov_signature in ('yes','none','na')),
+  orientation_status text check (orientation_status in ('ok','upcoming','for_schedule','no_orientation','tbd')),
   status lgu_status not null default 'for_deployment',
   system text,
   app_version text,
@@ -350,3 +356,25 @@ create policy "Admins can delete LGU documents" on storage.objects
 --
 --    update profiles set role = 'admin' where email = 'you@yourdomain.gov.ph';
 -- ---------------------------------------------------------------------------
+
+-- ---------------------------------------------------------------------------
+-- LGU notes: the dated check-in remarks from the tracking spreadsheet
+-- ("Concerns 6/9", "Concerns 7/10", MOA remarks, procurement follow-ups).
+-- Any signed-in user can log an update; only admins can delete one.
+-- ---------------------------------------------------------------------------
+create table lgu_notes (
+  id uuid primary key default uuid_generate_v4(),
+  lgu_id uuid not null references lgus(id) on delete cascade,
+  category text not null default 'general'
+    check (category in ('general','moa','orientation','procurement','hardware')),
+  body text not null check (length(trim(body)) > 0),
+  note_date date not null default current_date,
+  author_email text,
+  created_at timestamptz not null default now()
+);
+create index lgu_notes_lgu_idx on lgu_notes (lgu_id, note_date desc);
+
+alter table lgu_notes enable row level security;
+create policy "Authenticated read" on lgu_notes for select using (auth.role() = 'authenticated');
+create policy "Authenticated insert" on lgu_notes for insert with check (auth.role() = 'authenticated');
+create policy "Admin delete" on lgu_notes for delete using (public.is_admin());

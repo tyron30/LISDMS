@@ -24,6 +24,15 @@ function formatSize(bytes: number | null) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// The raw "Bucket not found" from Supabase doesn't tell anyone what to do.
+function friendlyStorageError(err: unknown, fallback: string) {
+  const msg = err instanceof Error ? err.message : typeof err === "object" && err && "message" in err ? String((err as { message: unknown }).message) : "";
+  if (/bucket not found/i.test(msg)) {
+    return "Storage isn't set up for documents yet. Run supabase/009_lgu_documents.sql in the Supabase SQL Editor, then try again.";
+  }
+  return msg || fallback;
+}
+
 // Storage object names shouldn't contain spaces or odd characters.
 function safeName(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -112,7 +121,7 @@ export function DocumentsTab({
       showToast("Document uploaded.");
       load();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Upload failed.", "error");
+      showToast(friendlyStorageError(err, "Upload failed."), "error");
     } finally {
       setUploading(false);
     }
@@ -130,7 +139,7 @@ export function DocumentsTab({
       if (error || !data) throw error ?? new Error("Couldn't create a download link.");
       window.open(data.signedUrl, "_blank", "noopener,noreferrer");
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Couldn't open the document.", "error");
+      showToast(friendlyStorageError(err, "Couldn't open the document."), "error");
     }
   }
 

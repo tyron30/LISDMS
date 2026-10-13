@@ -12,6 +12,9 @@ export interface LeyteTown {
 }
 
 export const LEYTE_TOWNS: LeyteTown[] = [
+  // --- Provincial Government (listed above the districts in the Directory) ---
+  { name: "Province of Leyte", district: "Provincial Government" },
+
   // --- 1st District ---
   { name: "Tacloban City", district: "1st District" },
   { name: "Alangalang", district: "1st District" },
@@ -65,3 +68,11 @@ export const LEYTE_TOWNS: LeyteTown[] = [
   { name: "Mahaplag", district: "5th District" },
   { name: "Matalom", district: "5th District" },
 ];
+
+const CITIES = new Set(["Tacloban City", "Ormoc City", "Baybay City"]);
+
+// Head-of-agency title implied by the LGU: used to pre-fill Designation.
+export function designationFor(name: string): string {
+  if (name === "Province of Leyte") return "Governor";
+  return CITIES.has(name) ? "City Mayor" : "Municipal Mayor";
+}

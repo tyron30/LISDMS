@@ -2,17 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Building2, Ticket as TicketIcon, CircleCheck, ClipboardList, CalendarDays, Paperclip, Rocket } from "lucide-react";
+import { Building2, Ticket as TicketIcon, CircleCheck, ClipboardList, CalendarDays, Paperclip, Rocket, StickyNote } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { isSupabaseConfigured, getSupabaseClient } from "@/lib/supabase";
-import { mockSchedule, mockDocuments } from "@/lib/mock-data";
-import { Lgu, Ticket, Requirement, ScheduleEvent, LguDocument } from "@/lib/types";
+import { mockSchedule, mockDocuments, mockLguNotes } from "@/lib/mock-data";
+import { Lgu, Ticket, Requirement, ScheduleEvent, LguDocument, LguNote } from "@/lib/types";
+import { NOTE_CATEGORY_OPTIONS, optionLabel } from "@/lib/lgu-options";
 import { cn } from "@/lib/utils";
 
-type Kind = "lgu" | "deployed" | "ticket" | "resolved" | "requirement" | "visit" | "document";
+type Kind = "lgu" | "deployed" | "ticket" | "resolved" | "requirement" | "visit" | "document" | "note";
 
 interface HistoryEvent {
   id: string;
@@ -31,6 +32,7 @@ const KIND_ICON: Record<Kind, typeof Building2> = {
   requirement: ClipboardList,
   visit: CalendarDays,
   document: Paperclip,
+  note: StickyNote,
 };
 
 const KIND_TONE: Record<Kind, string> = {
@@ -41,6 +43,7 @@ const KIND_TONE: Record<Kind, string> = {
   requirement: "text-orientation",
   visit: "text-feedback",
   document: "text-muted",
+  note: "text-orientation",
 };
 
 const PAGE = 25;
@@ -64,6 +67,7 @@ export function HistoryTab({
 }) {
   const [schedules, setSchedules] = useState<ScheduleEvent[]>([]);
   const [documents, setDocuments] = useState<LguDocument[]>([]);
+  const [notes, setNotes] = useState<LguNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [shown, setShown] = useState(PAGE);
 
@@ -72,20 +76,24 @@ export function HistoryTab({
       if (!isSupabaseConfigured) {
         setSchedules(mockSchedule.filter((s) => s.lgu_id === lgu.id));
         setDocuments(mockDocuments.filter((d) => d.lgu_id === lgu.id));
+        setNotes(mockLguNotes.filter((n) => n.lgu_id === lgu.id));
         setLoading(false);
         return;
       }
       try {
         const supabase = getSupabaseClient();
-        const [sRes, dRes] = await Promise.all([
+        const [sRes, dRes, nRes] = await Promise.all([
           supabase.from("schedules").select("*").eq("lgu_id", lgu.id),
           supabase.from("documents").select("*").eq("lgu_id", lgu.id),
+          supabase.from("lgu_notes").select("*").eq("lgu_id", lgu.id),
         ]);
         setSchedules((sRes.data as ScheduleEvent[]) ?? []);
         setDocuments((dRes.data as LguDocument[]) ?? []);
+        setNotes((nRes.data as LguNote[]) ?? []);
       } catch {
         setSchedules([]);
         setDocuments([]);
+        setNotes([]);
       } finally {
         setLoading(false);
       }
@@ -156,10 +164,20 @@ export function HistoryTab({
       });
     });
 
+    notes.forEach((n) => {
+      out.push({
+        id: `n-${n.id}`,
+        at: `${n.note_date}T12:00`,
+        kind: "note",
+        title: `${optionLabel(NOTE_CATEGORY_OPTIONS, n.category)} update`,
+        detail: n.body,
+      });
+    });
+
     return out
       .filter((e) => !Number.isNaN(new Date(e.at).getTime()))
       .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
-  }, [lgu, tickets, requirements, schedules, documents]);
+  }, [lgu, tickets, requirements, schedules, documents, notes]);
 
   if (loading) return <Skeleton className="h-48 w-full" />;
 
