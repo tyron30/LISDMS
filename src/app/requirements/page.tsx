@@ -16,12 +16,9 @@ import { AddRequirementDialog } from "@/components/forms/add-requirement-dialog"
 import { InlineStatusSelect } from "@/components/forms/inline-status-select";
 import { DeleteConfirmDialog } from "@/components/forms/delete-confirm-dialog";
 import { ListSkeleton } from "@/components/ui/skeleton";
-
-const REQUIREMENT_STATUS_OPTIONS: { value: Requirement["status"]; label: string }[] = [
-  { value: "pending", label: "Pending" },
-  { value: "submitted", label: "Submitted" },
-  { value: "waived", label: "Waived" },
-];
+import { useSupabaseData, fetchLguOptions, joinedName, toLguOptions, withLguName, LguOption } from "@/lib/data";
+import { ErrorState } from "@/components/ui/error-state";
+import { REQUIREMENT_STATUS_OPTIONS } from "@/lib/options";
 
 function isOverdue(r: Requirement) {
   if (r.status !== "pending" || !r.due_date) return false;
@@ -29,44 +26,25 @@ function isOverdue(r: Requirement) {
 }
 
 export default function RequirementsPage() {
-  const [items, setItems] = useState<Requirement[]>([]);
-  const [lguOptions, setLguOptions] = useState<{ id: string; name: string }[]>([]);
-  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Requirement | null>(null);
   const [deletingItem, setDeletingItem] = useState<Requirement | null>(null);
   const { isAdmin } = useAuth();
 
-  async function load() {
-    if (!isSupabaseConfigured) {
-      setItems(mockRequirements);
-      setLguOptions(mockLgus.map((l) => ({ id: l.id, name: l.name })));
-      setLoading(false);
-      return;
+  const { data, setData, loading, error, reload: load } = useSupabaseData(
+    async (sb) => {
+      const [r, lguOptions] = await Promise.all([sb.from("requirements").select("*, lgus(name)"), fetchLguOptions(sb)]);
+      if (r.error) throw r.error;
+      return { items: withLguName<Requirement>(r.data), lguOptions };
+    },
+    {
+      mock: { items: mockRequirements, lguOptions: toLguOptions(mockLgus) },
+      empty: { items: [] as Requirement[], lguOptions: [] as LguOption[] },
     }
-    try {
-      const supabase = getSupabaseClient();
-      const [reqRes, lgusRes] = await Promise.all([
-        supabase.from("requirements").select("*, lgus(name)"),
-        supabase.from("lgus").select("id, name").order("name"),
-      ]);
-      const mapped = (reqRes.data ?? []).map((row: Record<string, unknown>) => ({
-        ...row,
-        lgu_name: (row.lgus as { name?: string } | null)?.name ?? "Unknown LGU",
-      })) as Requirement[];
-      setItems(mapped);
-      setLguOptions((lgusRes.data as { id: string; name: string }[]) ?? []);
-    } catch {
-      setItems(mockRequirements);
-      setLguOptions(mockLgus.map((l) => ({ id: l.id, name: l.name })));
-    } finally {
-      setLoading(false);
-    }
-  }
+  );
+  const { items, lguOptions } = data;
+  const setItems = (fn: (prev: Requirement[]) => Requirement[]) => setData((d) => ({ ...d, items: fn(d.items) }));
 
-  useEffect(() => {
-    load();
-  }, []);
 
   return (
     <AppShell title="Requirements">
@@ -80,7 +58,9 @@ export default function RequirementsPage() {
           )}
         </div>
 
-        {loading ? (
+        {error ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : loading ? (
           <ListSkeleton rows={4} />
         ) : items.length === 0 ? (
           <EmptyState

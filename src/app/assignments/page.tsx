@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, ChevronRight } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
@@ -10,118 +10,106 @@ import { Select } from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/badge";
 import { ChecklistBadge } from "@/components/ui/checklist-badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/error-state";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { InlineStatusSelect } from "@/components/forms/inline-status-select";
-import { isSupabaseConfigured, getSupabaseClient } from "@/lib/supabase";
+import { AddNoteDialog } from "@/components/forms/add-note-dialog";
+import { NoteSnippet } from "@/components/lgus/note-snippet";
+import { useSupabaseData, joinedName } from "@/lib/data";
 import { useAuth } from "@/lib/use-auth";
 import { mockLgus, mockLguNotes, mockTickets } from "@/lib/mock-data";
 import { Lgu, LguNote } from "@/lib/types";
-import { MOA_STATUS_OPTIONS, ORIENTATION_OPTIONS } from "@/lib/lgu-options";
+import { MOA_STATUS_OPTIONS, ORIENTATION_OPTIONS, districtRank } from "@/lib/options";
 
 const UNASSIGNED = "Unassigned";
-const DISTRICT_RANK = ["Provincial Government", "1st District", "2nd District", "3rd District", "4th District", "5th District"];
+const byName = (a: string, b: string) => (a === UNASSIGNED ? 1 : b === UNASSIGNED ? -1 : a.localeCompare(b));
+const personOf = (l: Lgu) => l.assigned_person_name || UNASSIGNED;
 
 // The spreadsheet's "Assignments" tab: every LGU grouped under the staff
-// member responsible for it, with the MOA / orientation state and the most
-// recent check-in note, so each person can see their own list at a glance.
+// member responsible for it, with MOA / orientation state (editable in place
+// by admins), the latest dated update (anyone can add one), and open tickets.
 export default function AssignmentsPage() {
   const { isAdmin } = useAuth();
-  const [lgus, setLgus] = useState<Lgu[]>([]);
-  const [latestNote, setLatestNote] = useState<Map<string, LguNote>>(new Map());
-  const [openTickets, setOpenTickets] = useState<Map<string, number>>(new Map());
-  const [loading, setLoading] = useState(true);
-  const [usingMock, setUsingMock] = useState(false);
   const [query, setQuery] = useState("");
   const [person, setPerson] = useState("all");
+  const [noteFor, setNoteFor] = useState<Lgu | null>(null);
 
-  useEffect(() => {
-    function pickLatest(notes: LguNote[]) {
-      const map = new Map<string, LguNote>();
-      // notes arrive newest-first, so the first one seen per LGU is the latest
-      notes.forEach((n) => {
-        if (!map.has(n.lgu_id)) map.set(n.lgu_id, n);
-      });
-      return map;
+  const { data, setData, loading, error, usingMock, reload } = useSupabaseData(
+    async (sb) => {
+      const [l, n, t] = await Promise.all([
+        sb.from("lgus").select("*, assigned_persons(name)").order("name"),
+        sb.from("lgu_notes").select("*").order("note_date", { ascending: false }).order("created_at", { ascending: false }).limit(2000),
+        sb.from("tickets").select("lgu_id").neq("status", "resolved"),
+      ]);
+      if (l.error) throw l.error;
+      if (n.error) throw n.error;
+      if (t.error) throw t.error;
+      return {
+        lgus: (l.data ?? []).map((r) => ({ ...r, assigned_person_name: joinedName(r, "assigned_persons") })) as Lgu[],
+        notes: (n.data ?? []) as LguNote[],
+        openTickets: (t.data ?? []).map((r) => r.lgu_id as string),
+      };
+    },
+    {
+      mock: {
+        lgus: mockLgus,
+        notes: mockLguNotes,
+        openTickets: mockTickets.filter((t) => t.status !== "resolved").map((t) => t.lgu_id),
+      },
+      empty: { lgus: [] as Lgu[], notes: [] as LguNote[], openTickets: [] as string[] },
     }
+  );
 
-    async function load() {
-      if (!isSupabaseConfigured) {
-        setLgus(mockLgus.map((l) => ({ ...l })));
-        setLatestNote(pickLatest([...mockLguNotes].sort((a, b) => b.note_date.localeCompare(a.note_date))));
-        const counts = new Map<string, number>();
-        mockTickets.filter((t) => t.status !== "resolved").forEach((t) => counts.set(t.lgu_id, (counts.get(t.lgu_id) ?? 0) + 1));
-        setOpenTickets(counts);
-        setUsingMock(true);
-        setLoading(false);
-        return;
-      }
-      try {
-        const supabase = getSupabaseClient();
-        const [lguRes, noteRes, ticketRes] = await Promise.all([
-          supabase.from("lgus").select("*, assigned_persons(name)").order("name"),
-          supabase.from("lgu_notes").select("*").order("note_date", { ascending: false }).order("created_at", { ascending: false }).limit(2000),
-          supabase.from("tickets").select("lgu_id").neq("status", "resolved"),
-        ]);
-        if (lguRes.error) throw lguRes.error;
-        setLgus(
-          ((lguRes.data ?? []) as Record<string, unknown>[]).map((r) => ({
-            ...r,
-            assigned_person_name: (r.assigned_persons as { name?: string } | null)?.name ?? null,
-          })) as Lgu[]
-        );
-        setLatestNote(pickLatest((noteRes.data as LguNote[]) ?? []));
-        const counts = new Map<string, number>();
-        ((ticketRes.data ?? []) as { lgu_id: string }[]).forEach((t) => counts.set(t.lgu_id, (counts.get(t.lgu_id) ?? 0) + 1));
-        setOpenTickets(counts);
-      } catch {
-        setLgus(mockLgus.map((l) => ({ ...l })));
-        setUsingMock(true);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
+  const latest = useMemo(() => {
+    const m = new Map<string, LguNote>();
+    [...data.notes]
+      .sort((a, b) => b.note_date.localeCompare(a.note_date) || b.created_at.localeCompare(a.created_at))
+      .forEach((n) => m.has(n.lgu_id) || m.set(n.lgu_id, n));
+    return m;
+  }, [data.notes]);
 
-  const people = useMemo(() => {
-    const names = Array.from(new Set(lgus.map((l) => l.assigned_person_name || UNASSIGNED)));
-    return names.sort((a, b) => (a === UNASSIGNED ? 1 : b === UNASSIGNED ? -1 : a.localeCompare(b)));
-  }, [lgus]);
+  const ticketCount = useMemo(() => {
+    const m = new Map<string, number>();
+    data.openTickets.forEach((id) => m.set(id, (m.get(id) ?? 0) + 1));
+    return m;
+  }, [data.openTickets]);
+
+  const people = useMemo(() => Array.from(new Set(data.lgus.map(personOf))).sort(byName), [data.lgus]);
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const rank = (d?: string | null) => {
-      const i = DISTRICT_RANK.indexOf(d ?? "");
-      return i === -1 ? 99 : i;
-    };
     return people
       .filter((p) => person === "all" || p === person)
       .map((p) => ({
         person: p,
-        lgus: lgus
-          .filter((l) => (l.assigned_person_name || UNASSIGNED) === p)
-          .filter((l) => !q || l.name.toLowerCase().includes(q))
-          .sort((a, b) => rank(a.district) - rank(b.district) || a.name.localeCompare(b.name)),
+        lgus: data.lgus
+          .filter((l) => personOf(l) === p && (!q || l.name.toLowerCase().includes(q)))
+          .sort((a, b) => districtRank(a.district) - districtRank(b.district) || a.name.localeCompare(b.name)),
       }))
       .filter((g) => g.lgus.length > 0);
-  }, [people, lgus, query, person]);
+  }, [people, data.lgus, query, person]);
 
-  function updateLgu(id: string, patch: Partial<Lgu>) {
-    setLgus((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
-  }
+  const setField = (id: string, patch: Partial<Lgu>) =>
+    setData((d) => ({ ...d, lgus: d.lgus.map((l) => (l.id === id ? { ...l, ...patch } : l)) }));
 
-  function latestCell(lguId: string) {
-    const n = latestNote.get(lguId);
-    if (!n) return <span className="text-muted">—</span>;
-    return (
-      <div className="max-w-xs">
-        <p className="line-clamp-2 text-sm text-text">{n.body}</p>
-        <p className="text-xs text-muted">
-          {new Date(n.note_date).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}
-        </p>
-      </div>
+  const select = (l: Lgu, column: "moa_status" | "orientation_status", options: typeof MOA_STATUS_OPTIONS, label: string) =>
+    isAdmin ? (
+      <InlineStatusSelect
+        table="lgus"
+        id={l.id}
+        column={column}
+        value={l[column] ?? ""}
+        options={options}
+        logLabel={`Updated ${label}`}
+        target={l.name}
+        onUpdated={(v) => setField(l.id, { [column]: v || null } as Partial<Lgu>)}
+        className="w-36"
+      />
+    ) : (
+      <ChecklistBadge value={l[column]} options={options} />
     );
-  }
+
+  const snippet = (l: Lgu) => <NoteSnippet note={latest.get(l.id)} lguId={l.id} onAdd={() => setNoteFor(l)} />;
 
   return (
     <AppShell title="Assignments">
@@ -147,124 +135,86 @@ export default function AssignmentsPage() {
           </Select>
         </div>
 
-        {loading ? (
+        {error ? (
+          <ErrorState message={error} onRetry={reload} />
+        ) : loading ? (
           <TableSkeleton rows={6} cols={6} />
         ) : groups.length === 0 ? (
           <EmptyState title="No LGUs found" description="Try a different search, or assign LGUs to a person from the LGU's Edit form." />
         ) : (
-          groups.map((g) => {
-            const moaOk = g.lgus.filter((l) => l.moa_status === "yes").length;
-            return (
-              <section key={g.person} className="space-y-3">
-                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <h2 className="text-sm font-semibold text-text">{g.person}</h2>
-                  <span className="text-xs text-muted">
-                    {g.lgus.length} LGU{g.lgus.length === 1 ? "" : "s"} · MOA done: {moaOk}/{g.lgus.length}
-                  </span>
-                </div>
+          groups.map((g) => (
+            <section key={g.person} className="space-y-3">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h2 className="text-sm font-semibold text-text">{g.person}</h2>
+                <span className="text-xs text-muted">
+                  {g.lgus.length} LGU{g.lgus.length === 1 ? "" : "s"} · MOA done: {g.lgus.filter((l) => l.moa_status === "yes").length}/{g.lgus.length}
+                </span>
+              </div>
 
-                {/* Desktop */}
-                <Card className="hidden overflow-hidden md:block">
-                  <table className="w-full text-sm">
-                    <thead className="border-b border-border bg-bg/60 text-left text-xs font-medium text-muted">
-                      <tr>
-                        <th className="px-4 py-2.5">LGU</th>
-                        <th className="px-4 py-2.5">Deployment</th>
-                        <th className="px-4 py-2.5">MOA</th>
-                        <th className="px-4 py-2.5">Orientation</th>
-                        <th className="px-4 py-2.5">Latest update</th>
-                        <th className="px-4 py-2.5">Tickets</th>
-                        <th className="w-8 px-2 py-2.5" />
+              <Card className="hidden overflow-hidden md:block">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-border bg-bg/60 text-left text-xs font-medium text-muted">
+                    <tr>
+                      <th className="px-4 py-2.5">LGU</th>
+                      <th className="px-4 py-2.5">Deployment</th>
+                      <th className="px-4 py-2.5">MOA</th>
+                      <th className="px-4 py-2.5">Orientation</th>
+                      <th className="px-4 py-2.5">Latest update</th>
+                      <th className="px-4 py-2.5">Tickets</th>
+                      <th className="w-8 px-2 py-2.5" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {g.lgus.map((l) => (
+                      <tr key={l.id} className="align-top hover:bg-bg/60">
+                        <td className="px-4 py-3">
+                          <Link href={`/lgus/${l.id}`} className="font-medium text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand">
+                            {l.name}
+                          </Link>
+                          <p className="text-xs text-muted">{l.district || "No district"}</p>
+                        </td>
+                        <td className="px-4 py-3"><StatusBadge status={l.status} /></td>
+                        <td className="px-4 py-3">{select(l, "moa_status", MOA_STATUS_OPTIONS, "MOA status")}</td>
+                        <td className="px-4 py-3">{select(l, "orientation_status", ORIENTATION_OPTIONS, "orientation status")}</td>
+                        <td className="px-4 py-3">{snippet(l)}</td>
+                        <td className="px-4 py-3 tabular-nums text-text">{ticketCount.get(l.id) ?? 0}</td>
+                        <td className="px-2 py-3">
+                          <Link href={`/lgus/${l.id}`} aria-label={`Open ${l.name}`}>
+                            <ChevronRight className="h-4 w-4 text-muted" />
+                          </Link>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {g.lgus.map((l) => (
-                        <tr key={l.id} className="align-top hover:bg-bg/60">
-                          <td className="px-4 py-3">
-                            <Link href={`/lgus/${l.id}`} className="font-medium text-brand underline decoration-brand/30 underline-offset-2 hover:decoration-brand">
-                              {l.name}
-                            </Link>
-                            <p className="text-xs text-muted">{l.district || "No district"}</p>
-                          </td>
-                          <td className="px-4 py-3">
-                            <StatusBadge status={l.status} />
-                          </td>
-                          <td className="px-4 py-3">
-                            {isAdmin ? (
-                              <InlineStatusSelect
-                                table="lgus"
-                                id={l.id}
-                                column="moa_status"
-                                value={l.moa_status ?? ""}
-                                options={MOA_STATUS_OPTIONS}
-                                logLabel="Updated MOA status"
-                                target={l.name}
-                                onUpdated={(v) => updateLgu(l.id, { moa_status: (v || null) as Lgu["moa_status"] })}
-                                className="w-36"
-                              />
-                            ) : (
-                              <ChecklistBadge value={l.moa_status} options={MOA_STATUS_OPTIONS} />
-                            )}
-                          </td>
-                          <td className="px-4 py-3">
-                            {isAdmin ? (
-                              <InlineStatusSelect
-                                table="lgus"
-                                id={l.id}
-                                column="orientation_status"
-                                value={l.orientation_status ?? ""}
-                                options={ORIENTATION_OPTIONS}
-                                logLabel="Updated orientation status"
-                                target={l.name}
-                                onUpdated={(v) => updateLgu(l.id, { orientation_status: (v || null) as Lgu["orientation_status"] })}
-                                className="w-36"
-                              />
-                            ) : (
-                              <ChecklistBadge value={l.orientation_status} options={ORIENTATION_OPTIONS} />
-                            )}
-                          </td>
-                          <td className="px-4 py-3">{latestCell(l.id)}</td>
-                          <td className="px-4 py-3 tabular-nums text-text">{openTickets.get(l.id) ?? 0}</td>
-                          <td className="px-2 py-3">
-                            <Link href={`/lgus/${l.id}`} aria-label={`Open ${l.name}`}>
-                              <ChevronRight className="h-4 w-4 text-muted" />
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </Card>
+                    ))}
+                  </tbody>
+                </table>
+              </Card>
 
-                {/* Mobile */}
-                <div className="space-y-3 md:hidden">
-                  {g.lgus.map((l) => (
-                    <Link key={l.id} href={`/lgus/${l.id}`}>
-                      <Card className="p-4 transition-colors active:bg-bg/60">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="font-medium text-brand">{l.name}</p>
-                            <p className="text-xs text-muted">{l.district || "No district"}</p>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <StatusBadge status={l.status} />
-                            <ChevronRight className="h-4 w-4 text-muted" aria-hidden />
-                          </div>
-                        </div>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <ChecklistBadge value={l.moa_status} options={MOA_STATUS_OPTIONS} />
-                          <ChecklistBadge value={l.orientation_status} options={ORIENTATION_OPTIONS} />
-                        </div>
-                        <div className="mt-3 text-xs">{latestCell(l.id)}</div>
-                      </Card>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            );
-          })
+              <div className="space-y-3 md:hidden">
+                {g.lgus.map((l) => (
+                  <Card key={l.id} className="space-y-3 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <Link href={`/lgus/${l.id}`} className="font-medium text-brand underline decoration-brand/30 underline-offset-2">
+                          {l.name}
+                        </Link>
+                        <p className="text-xs text-muted">{l.district || "No district"}</p>
+                      </div>
+                      <StatusBadge status={l.status} />
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <ChecklistBadge value={l.moa_status} options={MOA_STATUS_OPTIONS} />
+                      <ChecklistBadge value={l.orientation_status} options={ORIENTATION_OPTIONS} />
+                    </div>
+                    {snippet(l)}
+                  </Card>
+                ))}
+              </div>
+            </section>
+          ))
         )}
       </div>
+
+      {noteFor && <AddNoteDialog open onClose={() => setNoteFor(null)} onSaved={reload} lguId={noteFor.id} lguName={noteFor.name} />}
     </AppShell>
   );
 }

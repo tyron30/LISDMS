@@ -19,25 +19,12 @@ import { TicketDialog } from "@/components/forms/ticket-dialog";
 import { InlineStatusSelect } from "@/components/forms/inline-status-select";
 import { DeleteConfirmDialog } from "@/components/forms/delete-confirm-dialog";
 import { ListSkeleton } from "@/components/ui/skeleton";
-
-const STATUS_OPTIONS: { value: TicketStatus; label: string }[] = [
-  { value: "open", label: "Open" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "resolved", label: "Resolved" },
-];
-
-const PRIORITY_DOT: Record<TicketPriority, string> = {
-  low: "bg-muted",
-  medium: "bg-warning",
-  high: "bg-warning",
-  critical: "bg-critical",
-};
+import { useSupabaseData, fetchLguOptions, joinedName, toLguOptions, withLguName, LguOption } from "@/lib/data";
+import { ErrorState } from "@/components/ui/error-state";
+import { TICKET_STATUS_OPTIONS, TICKET_PRIORITY_OPTIONS, PRIORITY_DOT } from "@/lib/options";
 
 export default function TicketsPage() {
   const router = useRouter();
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [lguOptions, setLguOptions] = useState<{ id: string; name: string }[]>([]);
-  const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "all">("all");
   const [priorityFilter, setPriorityFilter] = useState<TicketPriority | "all">("all");
@@ -46,40 +33,27 @@ export default function TicketsPage() {
   const [deletingTicket, setDeletingTicket] = useState<Ticket | null>(null);
   const { isAdmin } = useAuth();
 
-  async function load() {
-    if (!isSupabaseConfigured) {
-      setTickets(mockTickets);
-      setLguOptions(mockLgus.map((l) => ({ id: l.id, name: l.name })));
-      setLoading(false);
-      return;
-    }
-    try {
-      const supabase = getSupabaseClient();
-      const [ticketsRes, lgusRes] = await Promise.all([
-        supabase
-          .from("tickets")
-          .select("*, lgus(name), assigned_persons(name)")
-          .order("created_at", { ascending: false }),
-        supabase.from("lgus").select("id, name").order("name"),
+  const { data, setData, loading, error, reload: load } = useSupabaseData(
+    async (sb) => {
+      const [t, lguOptions] = await Promise.all([
+        sb.from("tickets").select("*, lgus(name), assigned_persons(name)").order("created_at", { ascending: false }),
+        fetchLguOptions(sb),
       ]);
-      const mapped = (ticketsRes.data ?? []).map((row: Record<string, unknown>) => ({
-        ...row,
-        lgu_name: (row.lgus as { name?: string } | null)?.name ?? "Unknown LGU",
-        assigned_person_name: (row.assigned_persons as { name?: string } | null)?.name ?? null,
-      })) as Ticket[];
-      setTickets(mapped);
-      setLguOptions((lgusRes.data as { id: string; name: string }[]) ?? []);
-    } catch {
-      setTickets(mockTickets);
-      setLguOptions(mockLgus.map((l) => ({ id: l.id, name: l.name })));
-    } finally {
-      setLoading(false);
+      if (t.error) throw t.error;
+      const tickets = withLguName<Ticket>(t.data).map((r) => ({
+        ...r,
+        assigned_person_name: joinedName(r as unknown as Record<string, unknown>, "assigned_persons"),
+      }));
+      return { tickets, lguOptions };
+    },
+    {
+      mock: { tickets: mockTickets, lguOptions: toLguOptions(mockLgus) },
+      empty: { tickets: [] as Ticket[], lguOptions: [] as LguOption[] },
     }
-  }
+  );
+  const { tickets, lguOptions } = data;
+  const setTickets = (fn: (prev: Ticket[]) => Ticket[]) => setData((d) => ({ ...d, tickets: fn(d.tickets) }));
 
-  useEffect(() => {
-    load();
-  }, []);
 
   const filtered = useMemo(() => {
     return tickets.filter((t) => {
@@ -109,7 +83,7 @@ export default function TicketsPage() {
             </div>
             <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as TicketStatus | "all")} className="sm:w-40">
               <option value="all">All statuses</option>
-              {STATUS_OPTIONS.map((s) => (
+              {TICKET_STATUS_OPTIONS.map((s) => (
                 <option key={s.value} value={s.value}>
                   {s.label}
                 </option>
@@ -117,10 +91,11 @@ export default function TicketsPage() {
             </Select>
             <Select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value as TicketPriority | "all")} className="sm:w-36">
               <option value="all">All priorities</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="critical">Critical</option>
+              {TICKET_PRIORITY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </Select>
           </div>
           {isAdmin && (
@@ -130,7 +105,9 @@ export default function TicketsPage() {
           )}
         </div>
 
-        {loading ? (
+        {error ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : loading ? (
           <ListSkeleton rows={5} />
         ) : filtered.length === 0 ? (
           <EmptyState
@@ -176,7 +153,7 @@ export default function TicketsPage() {
                       table="tickets"
                       id={t.id}
                       value={t.status}
-                      options={STATUS_OPTIONS}
+                      options={TICKET_STATUS_OPTIONS}
                       logLabel="Updated ticket status"
                       target={`#${t.ticket_number} ${t.title}`}
                       onUpdated={(newStatus) =>

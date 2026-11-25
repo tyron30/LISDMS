@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Option, optionLabel, toneFor } from "@/lib/lgu-options";
+import { Option, optionLabel, toneFor } from "@/lib/options";
 
 const DOT = {
   good: "bg-success",

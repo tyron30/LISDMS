@@ -439,10 +439,41 @@ Database: run `supabase/010_spreadsheet_alignment.sql` on an existing install (a
 
 Not yet covered because they weren't in the shared screenshots: the **2026 Reports**, **Specs Sheet**, **Coordination Flow**, **2026 Goals** and **Calendar 2026** tabs.
 
+## Sessions: closing the app signs you out
+
+Previously the login lasted about a year (the Supabase library hard-codes a
+400-day cookie), so closing the app and reopening it dropped you straight back
+into the dashboard. Now:
+
+- The login cookie is a **session cookie** — it disappears when the browser closes (`src/lib/supabase.ts`, `src/middleware.ts`).
+- **Closing the last tab** while the browser stays open also ends the session: each open tab registers itself, and a new tab that finds no live tab and has no session of its own is treated as a new browser session and sent to the login page (`src/lib/session.ts`). Reloading, navigating, or opening a second tab while one is open does **not** sign you out.
+- A session also ends after **12 hours** regardless of activity, and after **30 minutes idle** (with a warning 5 minutes before).
+- The login page says why you were signed out (inactivity / app closed / 12-hour limit).
+
+One-time effect of this update: everyone is asked to sign in once, because existing logins predate the new rules.
+
+**Logout fix:** the app's "who is signed in?" check used to call sign-out itself whenever it found nobody, and every sign-out re-ran that check — so after pressing Logout it looped until the tab froze. It now simply reports "signed out". Logout (and the automatic idle / closed / 12-hour sign-outs) now sign out this browser only — not your other devices — and finish with a full page reload to the login screen so no signed-in pages stay cached.
+
+## Preferences and My Activity
+
+- **Preferences** (`/preferences`): theme (Light / Dark / Match my computer — also what the moon/sun button in the top bar changes), which page opens after sign-in, and which alerts the bell shows (upcoming visits, high-priority tickets, overdue requirements, offline devices) and how far ahead it looks for visits. Saved instantly **in this browser** (not per account).
+- **My Activity** (`/activity`): your own sign-ins and changes. Admins still see everyone's under Administration → Audit Logs; both use the same filterable view. Run `supabase/011_own_activity_read.sql` so non-admins can read their own entries.
+
+## MOA remarks and updates from the tracker
+
+The MOA Tracker (and Assignments) have an **Add remark / Add update** button on every LGU row — anyone signed in can add one, with a date; "View all" opens that LGU's Updates tab. The Updates tab uses the same dialog. Updates are an append-only log; admins can delete one, but there is no edit.
+
+## Scheduling a visit for an LGU that isn't in the system yet
+
+In the Schedule Visit form's LGU list, choose **＋ New LGU (not in the system yet)…**, type the name (Leyte towns are suggested and the district fills in), and saving creates that LGU as "For Deployment" together with the visit. Typing a name that already exists reuses the existing LGU instead of duplicating it.
+
+## Errors are shown, not hidden behind sample data
+
+When Supabase *is* connected but a request fails, pages used to quietly show sample data (fake LGUs that look real). The pages below now show "Couldn't load this page" with the actual reason and a **Try again** button; sample data only appears when no database is configured, with a banner saying so. Save/delete failures show the real database message instead of a generic one. This lives in one shared hook (`src/lib/data.ts`). Converted so far: Tickets, Requirements, Network, MOA Tracker, Assignments, the LGU Updates tab and the audit views.
+
 ## What's a stub (by design, given the size of the original spec)
 
 - Editing schedules (visits) isn't built yet — LGUs, concerns, requirements, and devices are all fully editable now
-- Preferences page isn't wired to real settings yet; Activity is a placeholder pointing at `audit_logs`
 - Real-time subscriptions / notifications
 
 These are all straightforward to build on top of the patterns already in

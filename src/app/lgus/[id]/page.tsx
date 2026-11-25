@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Phone, Mail, TicketPlus, CalendarPlus, FilePlus, Pencil, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +25,7 @@ import { DocumentsTab } from "@/components/lgus/documents-tab";
 import { HistoryTab } from "@/components/lgus/history-tab";
 import { NotesTab } from "@/components/lgus/notes-tab";
 import { ChecklistBadge } from "@/components/ui/checklist-badge";
-import { MOA_STATUS_OPTIONS, SIGNOFF_OPTIONS, ORIENTATION_OPTIONS, splitList, telHref, firstPhoneHref } from "@/lib/lgu-options";
+import { MOA_STATUS_OPTIONS, SIGNOFF_OPTIONS, ORIENTATION_OPTIONS, splitList, telHref, firstPhoneHref } from "@/lib/options";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const TABS = ["Overview", "Contacts", "System", "Credentials", "Tickets", "Requirements", "Updates", "Schedules", "Documents", "History"];
@@ -48,7 +48,8 @@ export default function LguDetailPage() {
   const [lgu, setLgu] = useState<Lgu | null>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [requirements, setRequirements] = useState<Requirement[]>([]);
-  const [tab, setTab] = useState("Overview");
+  const requestedTab = useSearchParams().get("tab") ?? "";
+  const [tab, setTab] = useState(TABS.includes(requestedTab) ? requestedTab : "Overview");
   const [reloadKey, setReloadKey] = useState(0);
   const [ticketDialogOpen, setTicketDialogOpen] = useState(false);
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);

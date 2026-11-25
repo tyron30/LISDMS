@@ -278,7 +278,7 @@ create policy "Authenticated read" on documents for select using (auth.role() = 
 create policy "Admin write" on documents for insert with check (public.is_admin());
 create policy "Admin delete" on documents for delete using (public.is_admin());
 
-create policy "Admin read" on audit_logs for select using (public.is_admin());
+create policy "Admin or own read" on audit_logs for select using (public.is_admin() or actor = (auth.jwt() ->> 'email'));
 create policy "Authenticated insert" on audit_logs for insert with check (auth.role() = 'authenticated');
 
 create policy "Authenticated read" on network_devices for select using (auth.role() = 'authenticated');

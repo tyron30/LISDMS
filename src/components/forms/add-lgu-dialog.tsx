@@ -19,7 +19,7 @@ import {
   ORIENTATION_OPTIONS,
   DESIGNATION_OPTIONS,
   SETUP_OPTIONS,
-} from "@/lib/lgu-options";
+} from "@/lib/options";
 
 const STATUS_OPTIONS: { value: LguStatus; label: string }[] = [
   { value: "for_deployment", label: "For Deployment" },

@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/use-auth";
+import { usePreferences, applyTheme } from "@/lib/preferences";
+import { endSession } from "@/lib/session";
 import { getSupabaseClient } from "@/lib/supabase";
 import { useCommandPalette } from "@/lib/command-palette-context";
 import { getNotifications, AppNotification } from "@/lib/notifications";
@@ -33,11 +35,13 @@ function NotificationsMenu() {
   const [loading, setLoading] = useState(true);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { prefs } = usePreferences();
+  const prefsKey = JSON.stringify([prefs.notify, prefs.visitWindowDays]);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const results = await getNotifications();
+      const results = await getNotifications(prefs);
       if (!cancelled) {
         setItems(results);
         setLoading(false);
@@ -51,7 +55,9 @@ function NotificationsMenu() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, []);
+    // Reload when the notification preferences change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefsKey]);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -118,7 +124,6 @@ function UserMenu() {
   const { email, profile, isAdmin, isSupabaseConfigured } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const router = useRouter();
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -129,13 +134,15 @@ function UserMenu() {
   }, []);
 
   async function handleLogout() {
-    if (isSupabaseConfigured) {
-      const supabase = getSupabaseClient();
-      await supabase.auth.signOut();
-    }
     setOpen(false);
-    router.push("/login");
-    router.refresh();
+    endSession();
+    if (isSupabaseConfigured) {
+      // "local" signs out this browser only, not the person's other devices.
+      await getSupabaseClient().auth.signOut({ scope: "local" }).catch(() => {});
+    }
+    // A full page load (not a client-side route change) so every cached page
+    // and in-memory state from the signed-in session is dropped.
+    window.location.assign("/login");
   }
 
   return (
@@ -205,22 +212,24 @@ export function TopNav({
 }) {
   const [dark, setDark] = useState(false);
   const { setOpen: openPalette } = useCommandPalette();
+  const { prefs, update } = usePreferences();
 
+  // Theme comes from Preferences (Light / Dark / System); "System" also
+  // follows the computer's setting live.
   useEffect(() => {
-    const stored = typeof window !== "undefined" && localStorage.getItem("lisdms-theme");
-    const prefersDark =
-      typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const shouldBeDark = stored ? stored === "dark" : prefersDark;
-    setDark(shouldBeDark);
-    document.documentElement.classList.toggle("dark", shouldBeDark);
-  }, []);
+    applyTheme(prefs.theme);
+    setDark(document.documentElement.classList.contains("dark"));
+    if (prefs.theme !== "system") return;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => {
+      applyTheme("system");
+      setDark(mq.matches);
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [prefs.theme]);
 
-  function toggleDark() {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle("dark", next);
-    localStorage.setItem("lisdms-theme", next ? "dark" : "light");
-  }
+  const toggleDark = () => update({ theme: dark ? "light" : "dark" });
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-surface px-3 md:px-4">

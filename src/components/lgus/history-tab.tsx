@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { isSupabaseConfigured, getSupabaseClient } from "@/lib/supabase";
 import { mockSchedule, mockDocuments, mockLguNotes } from "@/lib/mock-data";
 import { Lgu, Ticket, Requirement, ScheduleEvent, LguDocument, LguNote } from "@/lib/types";
-import { NOTE_CATEGORY_OPTIONS, optionLabel } from "@/lib/lgu-options";
+import { NOTE_CATEGORY_OPTIONS, optionLabel } from "@/lib/options";
 import { cn } from "@/lib/utils";
 
 type Kind = "lgu" | "deployed" | "ticket" | "resolved" | "requirement" | "visit" | "document" | "note";

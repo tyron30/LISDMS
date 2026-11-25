@@ -8,6 +8,8 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/ui/button";
 import { isSupabaseConfigured, getSupabaseClient } from "@/lib/supabase";
 import { logAction } from "@/lib/audit";
+import { startSession } from "@/lib/session";
+import { loadPreferences } from "@/lib/preferences";
 import { useSettings } from "@/lib/settings-context";
 
 const MAX_ATTEMPTS = 5;
@@ -23,7 +25,12 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [lockoutRemaining, setLockoutRemaining] = useState(0);
-  const timedOut = searchParams.get("reason") === "timeout";
+  const REASONS: Record<string, string> = {
+    timeout: "You were signed out after 30 minutes of inactivity. Please sign in again.",
+    closed: "Your session ended when the app was closed. Please sign in again.",
+    expired: "Your session reached its 12-hour limit. Please sign in again.",
+  };
+  const reasonMessage = REASONS[searchParams.get("reason") ?? ""];
 
   useEffect(() => {
     if (lockoutRemaining <= 0) return;
@@ -61,7 +68,8 @@ function LoginForm() {
         }
         return;
       }
-      const next = searchParams.get("next") || "/dashboard";
+      const next = searchParams.get("next") || loadPreferences().startPage || "/dashboard";
+      startSession();
       logAction("Signed in");
       router.push(next);
       router.refresh();
@@ -114,9 +122,9 @@ function LoginForm() {
           </div>
         </div>
 
-        {timedOut && (
+        {reasonMessage && (
           <p className="mb-4 rounded-md border border-warning/40 bg-warning/15 px-3 py-2 text-center text-xs text-warning backdrop-blur-sm">
-            You were signed out after 30 minutes of inactivity. Please sign in again.
+            {reasonMessage}
           </p>
         )}
 

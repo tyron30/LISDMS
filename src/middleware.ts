@@ -20,11 +20,14 @@ export async function middleware(request: NextRequest) {
       get(name: string) {
         return request.cookies.get(name)?.value;
       },
+      // Drop the library's 400-day lifetime so refreshed auth cookies stay
+      // session cookies (cleared when the browser closes). Deletions keep maxAge 0.
       set(name: string, value: string, options: CookieOptions) {
-        response.cookies.set({ name, value, ...options });
+        const { maxAge, expires, ...rest } = options;
+        response.cookies.set({ name, value, ...rest, ...(maxAge === 0 ? { maxAge: 0 } : {}) });
       },
       remove(name: string, options: CookieOptions) {
-        response.cookies.set({ name, value: "", ...options });
+        response.cookies.set({ name, value: "", ...options, maxAge: 0 });
       },
     },
   });

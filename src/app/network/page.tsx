@@ -18,77 +18,36 @@ import { AddNetworkDeviceDialog } from "@/components/forms/add-network-device-di
 import { InlineStatusSelect } from "@/components/forms/inline-status-select";
 import { DeleteConfirmDialog } from "@/components/forms/delete-confirm-dialog";
 import { TableSkeleton } from "@/components/ui/skeleton";
-
-const DEVICE_STATUS_OPTIONS: { value: DeviceStatus; label: string }[] = [
-  { value: "online", label: "Online" },
-  { value: "offline", label: "Offline" },
-  { value: "maintenance", label: "Maintenance" },
-];
-
-const TYPE_ICON: Record<DeviceType, typeof Router> = {
-  router: Router,
-  switch: NetworkIcon,
-  access_point: Wifi,
-  modem: Router,
-  printer: Printer,
-  other: HardDrive,
-};
-
-const TYPE_LABEL: Record<DeviceType, string> = {
-  router: "Router",
-  switch: "Switch",
-  access_point: "Access Point",
-  modem: "Modem",
-  printer: "Printer",
-  other: "Other",
-};
+import { useSupabaseData, fetchLguOptions, joinedName, toLguOptions, withLguName, LguOption } from "@/lib/data";
+import { ErrorState } from "@/components/ui/error-state";
+import { DEVICE_TYPE_META } from "@/lib/device-meta";
+import { DEVICE_STATUS_OPTIONS } from "@/lib/options";
 
 export default function NetworkPage() {
-  const [devices, setDevices] = useState<NetworkDevice[]>([]);
-  const [lguOptions, setLguOptions] = useState<{ id: string; name: string }[]>([]);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<DeviceStatus | "all">("all");
-  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<NetworkDevice | null>(null);
   const [deletingDevice, setDeletingDevice] = useState<NetworkDevice | null>(null);
-  const [usingMock, setUsingMock] = useState(false);
   const { isAdmin } = useAuth();
 
-  async function load() {
-    if (!isSupabaseConfigured) {
-      setDevices(mockNetworkDevices);
-      setLguOptions(mockLgus.map((l) => ({ id: l.id, name: l.name })));
-      setUsingMock(true);
-      setLoading(false);
-      return;
-    }
-    try {
-      const supabase = getSupabaseClient();
-      const [deviceRes, lgusRes] = await Promise.all([
-        // network_devices only stores lgu_id — join lgus to get a display name.
-        supabase.from("network_devices").select("*, lgus(name)").order("device_name"),
-        supabase.from("lgus").select("id, name").order("name"),
+  const { data, setData, loading, error, usingMock, reload: load } = useSupabaseData(
+    async (sb) => {
+      const [d, lguOptions] = await Promise.all([
+        sb.from("network_devices").select("*, lgus(name)").order("device_name"),
+        fetchLguOptions(sb),
       ]);
-      if (deviceRes.error) throw deviceRes.error;
-      const mapped = (deviceRes.data ?? []).map((row: Record<string, unknown>) => ({
-        ...row,
-        lgu_name: (row.lgus as { name?: string } | null)?.name ?? "Unknown LGU",
-      })) as NetworkDevice[];
-      setDevices(mapped);
-      setLguOptions((lgusRes.data as { id: string; name: string }[]) ?? []);
-    } catch {
-      setDevices(mockNetworkDevices);
-      setLguOptions(mockLgus.map((l) => ({ id: l.id, name: l.name })));
-      setUsingMock(true);
-    } finally {
-      setLoading(false);
+      if (d.error) throw d.error;
+      return { devices: withLguName<NetworkDevice>(d.data), lguOptions };
+    },
+    {
+      mock: { devices: mockNetworkDevices, lguOptions: toLguOptions(mockLgus) },
+      empty: { devices: [] as NetworkDevice[], lguOptions: [] as LguOption[] },
     }
-  }
+  );
+  const { devices, lguOptions } = data;
+  const setDevices = (fn: (prev: NetworkDevice[]) => NetworkDevice[]) => setData((d) => ({ ...d, devices: fn(d.devices) }));
 
-  useEffect(() => {
-    load();
-  }, []);
 
   const filtered = useMemo(() => {
     return devices.filter((d) => {
@@ -147,7 +106,9 @@ export default function NetworkPage() {
           )}
         </div>
 
-        {loading ? (
+        {error ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : loading ? (
           <TableSkeleton rows={5} cols={6} />
         ) : filtered.length === 0 ? (
           <EmptyState
@@ -174,7 +135,7 @@ export default function NetworkPage() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filtered.map((d) => {
-                    const Icon = TYPE_ICON[d.device_type];
+                    const Icon = DEVICE_TYPE_META[d.device_type].icon;
                     return (
                       <tr key={d.id} className="hover:bg-bg/60">
                         <td className="px-4 py-3">
@@ -188,7 +149,7 @@ export default function NetworkPage() {
                             {d.lgu_name}
                           </Link>
                         </td>
-                        <td className="px-4 py-3 text-muted">{TYPE_LABEL[d.device_type]}</td>
+                        <td className="px-4 py-3 text-muted">{DEVICE_TYPE_META[d.device_type].label}</td>
                         <td className="px-4 py-3 font-mono text-xs text-muted">{d.ip_address ?? "—"}</td>
                         <td className="px-4 py-3">
                           {isAdmin ? (
@@ -243,7 +204,7 @@ export default function NetworkPage() {
             {/* Mobile cards */}
             <div className="space-y-3 md:hidden">
               {filtered.map((d) => {
-                const Icon = TYPE_ICON[d.device_type];
+                const Icon = DEVICE_TYPE_META[d.device_type].icon;
                 return (
                   <Card key={d.id} className="p-4">
                     <div className="flex items-start justify-between">
@@ -259,7 +220,7 @@ export default function NetworkPage() {
                     <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                       <div>
                         <p className="text-muted">Type</p>
-                        <p className="font-medium text-text">{TYPE_LABEL[d.device_type]}</p>
+                        <p className="font-medium text-text">{DEVICE_TYPE_META[d.device_type].label}</p>
                       </div>
                       <div>
                         <p className="text-muted">IP Address</p>

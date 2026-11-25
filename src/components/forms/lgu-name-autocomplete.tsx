@@ -13,10 +13,12 @@ export function LguNameAutocomplete({
   value,
   onChange,
   onSelectTown,
+  exclude = [],
 }: {
   value: string;
   onChange: (value: string) => void;
   onSelectTown: (town: LeyteTown) => void;
+  exclude?: string[]; // names to leave out of the suggestions (already in the system)
 }) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -26,7 +28,7 @@ export function LguNameAutocomplete({
   const matches =
     query.length === 0
       ? []
-      : LEYTE_TOWNS.filter((t) => t.name.toLowerCase().includes(query)).slice(0, 8);
+      : LEYTE_TOWNS.filter((t) => t.name.toLowerCase().includes(query) && !exclude.includes(t.name)).slice(0, 8);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {

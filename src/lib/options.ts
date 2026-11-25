@@ -1,3 +1,5 @@
+import { TicketStatus, TicketPriority, Requirement, DeviceStatus } from "./types";
+
 // Vocabulary taken straight from the QDTS Tracker spreadsheet so the system
 // uses the same words the team already does.
 
@@ -54,7 +56,7 @@ export function optionLabel(options: Option[], value: string | null | undefined)
   return options.find((o) => o.value === value)?.label ?? value;
 }
 
-export type Tone = "good" | "bad" | "pending" | "muted";
+type Tone = "good" | "bad" | "pending" | "muted";
 
 export function toneFor(value: string | null | undefined): Tone {
   switch (value) {
@@ -93,3 +95,67 @@ export function firstPhoneHref(value: string | null | undefined) {
   const first = splitList(value)[0];
   return first ? telHref(first) : undefined;
 }
+
+// ---- Districts (were redefined in four files) ----
+export const DISTRICTS = ["Provincial Government", "1st District", "2nd District", "3rd District", "4th District", "5th District"];
+export const NO_DISTRICT = "No District Set";
+
+export function districtRank(d?: string | null) {
+  const i = DISTRICTS.indexOf(d ?? "");
+  return i === -1 ? DISTRICTS.length : i;
+}
+
+// Groups rows by district in display order; "No District Set" goes last and
+// empty groups are dropped.
+export function groupByDistrict<T extends { district?: string | null }>(rows: T[]) {
+  const map = new Map<string, T[]>();
+  rows.forEach((r) => {
+    const key = r.district || NO_DISTRICT;
+    map.set(key, [...(map.get(key) ?? []), r]);
+  });
+  return [...DISTRICTS, NO_DISTRICT]
+    .map((district) => ({ district, rows: map.get(district) ?? [] }))
+    .filter((g) => g.rows.length > 0);
+}
+
+// ---- Status / priority vocab shared across pages and dialogs ----
+export const TICKET_STATUS_OPTIONS: { value: TicketStatus; label: string }[] = [
+  { value: "open", label: "Open" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "resolved", label: "Resolved" },
+];
+
+export const TICKET_PRIORITY_OPTIONS: { value: TicketPriority; label: string }[] = [
+  { value: "low", label: "Low" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High" },
+  { value: "critical", label: "Critical" },
+];
+
+export const TICKET_CATEGORY_OPTIONS = ["Network", "Hardware", "Software", "Account/Access", "Other"];
+
+export const PRIORITY_DOT: Record<TicketPriority, string> = {
+  low: "bg-muted",
+  medium: "bg-warning",
+  high: "bg-warning",
+  critical: "bg-critical",
+};
+
+export const PRIORITY_CHIP: Record<TicketPriority, string> = {
+  low: "bg-border/60 text-muted",
+  medium: "bg-warning/10 text-warning",
+  high: "bg-warning/10 text-warning",
+  critical: "bg-critical/10 text-critical",
+};
+
+export const REQUIREMENT_STATUS_OPTIONS: { value: Requirement["status"]; label: string }[] = [
+  { value: "pending", label: "Pending" },
+  { value: "submitted", label: "Submitted" },
+  { value: "waived", label: "Waived" },
+];
+
+export const DEVICE_STATUS_OPTIONS: { value: DeviceStatus; label: string }[] = [
+  { value: "online", label: "Online" },
+  { value: "offline", label: "Offline" },
+  { value: "maintenance", label: "Maintenance" },
+];

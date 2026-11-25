@@ -32,10 +32,11 @@ export function useAuth() {
       if (error) throw error;
       user = data.user;
     } catch {
-      // Same stale-refresh-token scenario handled in middleware.ts — clear
-      // the invalid local session so the browser stops retrying it every
-      // time this hook runs.
-      await supabase.auth.signOut().catch(() => {});
+      // No usable session (never signed in, just signed out, or a stale token
+      // the library has already discarded): report "signed out" and stop.
+      // Don't call signOut() here — it emits SIGNED_OUT, which re-runs this
+      // loader, which would sign out again: an endless loop that froze the
+      // tab when clicking Logout.
       setProfile(null);
       setLoading(false);
       return;
